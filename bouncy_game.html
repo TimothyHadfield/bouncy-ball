@@ -1,0 +1,2463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bouncy Ball</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+        }
+
+        body.no-scroll {
+            overflow: hidden;
+        }
+
+        #menuScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+
+        #menuScreen h1 {
+            font-size: 4rem;
+            color: #fff;
+            text-shadow: 0 0 20px #00d9ff, 0 0 40px #00d9ff;
+            margin-bottom: 10px;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { text-shadow: 0 0 20px #00d9ff, 0 0 40px #00d9ff; }
+            to { text-shadow: 0 0 30px #ff00ff, 0 0 60px #ff00ff; }
+        }
+
+        #menuScreen .subtitle {
+            color: #888;
+            font-size: 1.2rem;
+            margin-bottom: 40px;
+        }
+
+        .levels-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            max-width: 900px;
+            padding: 20px;
+            min-height: 150px;
+        }
+
+        .level-box {
+            width: 150px;
+            height: 120px;
+            background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #333;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .level-box:hover {
+            transform: translateY(-5px);
+            border-color: #00d9ff;
+            box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+        }
+
+        .level-box canvas { width: 100%; height: 80px; }
+        .level-box .level-name {
+            text-align: center;
+            color: #fff;
+            padding: 5px;
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.5);
+        }
+
+        .level-box.create-new {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: #555;
+            border-style: dashed;
+        }
+
+        .level-box.create-new:hover { color: #00d9ff; }
+
+        .level-box .delete-btn, .level-box .edit-btn {
+            position: absolute;
+            top: 5px;
+            width: 24px;
+            height: 24px;
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            line-height: 24px;
+            display: none;
+        }
+
+        .level-box .delete-btn { right: 5px; background: rgba(255, 50, 50, 0.8); }
+        .level-box .edit-btn { right: 35px; background: rgba(0, 150, 255, 0.8); }
+        .level-box:hover .delete-btn, .level-box:hover .edit-btn { display: block; }
+
+        #gameScreen, #editorScreen {
+            display: none;
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #gameCanvas, #editorCanvas {
+            display: block;
+            background: linear-gradient(180deg, #0f0f23 0%, #1a1a3a 100%);
+        }
+
+        .toolbar {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 30px;
+            z-index: 100;
+        }
+
+        .tool-btn {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #444;
+            border-radius: 10px;
+            background: #222;
+            color: #fff;
+            cursor: pointer;
+            font-size: 1.5rem;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tool-btn:hover { border-color: #00d9ff; background: #333; }
+        .tool-btn.active { border-color: #00d9ff; background: #00d9ff33; box-shadow: 0 0 15px #00d9ff55; }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: all 0.2s;
+            margin: 5px;
+        }
+
+        .btn-primary { background: linear-gradient(145deg, #00d9ff, #0099cc); color: #000; }
+        .btn-primary:hover { box-shadow: 0 0 20px #00d9ff55; }
+        .btn-secondary { background: #333; color: #fff; border: 1px solid #555; }
+        .btn-secondary:hover { background: #444; }
+
+        .top-bar { position: absolute; top: 10px; left: 10px; display: flex; gap: 10px; z-index: 100; }
+        .top-bar-right { position: absolute; top: 10px; right: 10px; z-index: 100; }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal.active { display: flex; }
+
+        .modal-content {
+            background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            color: #fff;
+            border: 2px solid #00d9ff;
+            box-shadow: 0 0 50px #00d9ff33;
+        }
+
+        .modal-content h2 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #00d9ff;
+            text-shadow: 0 0 20px #00d9ff;
+        }
+
+        .settings-panel {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(145deg, #2a2a4a, #1a1a3a);
+            padding: 30px;
+            border-radius: 20px;
+            color: #fff;
+            z-index: 1000;
+            min-width: 300px;
+            border: 2px solid #555;
+        }
+
+        .settings-panel.active { display: block; }
+        .settings-panel h2 { margin-bottom: 20px; color: #00d9ff; }
+        .settings-panel label { display: block; margin: 10px 0 5px; }
+        .settings-panel input[type="range"] { width: 100%; }
+
+        .settings-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
+        }
+
+        .settings-overlay.active { display: block; }
+
+        .icon-ball { color: #ff6b6b; }
+        .icon-cup { color: #4ecdc4; }
+        .icon-trampoline { color: #ffe66d; }
+        .icon-spike { color: #ff4757; }
+        .icon-fan { color: #a8e6cf; }
+        .icon-circle { color: #74b9ff; }
+        .icon-rectangle { color: #fd79a8; }
+        .icon-wall { color: #dfe6e9; }
+        .icon-select { color: #fff; }
+
+        .hint-text {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #666;
+            font-size: 0.9rem;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div id="menuScreen">
+        <h1>Bouncy Ball</h1>
+        <p class="subtitle">Launch, bounce, and score!</p>
+        <div class="levels-container" id="levelsContainer">
+            <p style="color: #666;">Loading levels...</p>
+        </div>
+        <button class="btn btn-secondary" onclick="resetGame()" style="margin-top: 20px; opacity: 0.5;">Reset All Data</button>
+    </div>
+
+    <div id="gameScreen">
+        <canvas id="gameCanvas"></canvas>
+        <div class="top-bar">
+            <button class="btn btn-secondary" onclick="goToMenu()">Menu</button>
+            <button class="btn btn-secondary" onclick="resetBall()">Reset Ball</button>
+        </div>
+        <div class="top-bar-right">
+            <button class="btn btn-secondary" onclick="openSettings()">Settings</button>
+        </div>
+    </div>
+
+    <div id="editorScreen">
+        <canvas id="editorCanvas"></canvas>
+        <div class="top-bar">
+            <button class="btn btn-secondary" onclick="goToMenu()">Menu</button>
+            <button class="btn btn-primary" onclick="playLevel()">Play Level</button>
+            <button class="btn btn-secondary" onclick="saveLevel()">Save</button>
+        </div>
+        <div class="toolbar" id="toolbar">
+            <button class="tool-btn active" data-tool="select" title="Select (drag to move, scroll to resize)">
+                <span class="icon-select">+</span>
+            </button>
+            <button class="tool-btn" data-tool="ball" title="Ball Spawn">
+                <span class="icon-ball">O</span>
+            </button>
+            <button class="tool-btn" data-tool="cup" title="Cup">
+                <span class="icon-cup">U</span>
+            </button>
+            <button class="tool-btn" data-tool="trampoline" title="Trampoline">
+                <span class="icon-trampoline">=</span>
+            </button>
+            <button class="tool-btn" data-tool="spike" title="Spike">
+                <span class="icon-spike">^</span>
+            </button>
+            <button class="tool-btn" data-tool="fan" title="Fan">
+                <svg class="icon-fan" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a8e6cf" stroke-width="2">
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 9C12 9 12 3 7 3C7 8 12 9 12 9"/>
+                    <path d="M15 12C15 12 21 12 21 7C16 7 15 12 15 12"/>
+                    <path d="M12 15C12 15 12 21 17 21C17 16 12 15 12 15"/>
+                    <path d="M9 12C9 12 3 12 3 17C8 17 9 12 9 12"/>
+                </svg>
+            </button>
+            <button class="tool-btn" data-tool="circle" title="Circle">
+                <span class="icon-circle">O</span>
+            </button>
+            <button class="tool-btn" data-tool="rectangle" title="Rectangle">
+                <span class="icon-rectangle">[]</span>
+            </button>
+            <button class="tool-btn" data-tool="wall" title="Wall (click and drag)">
+                <span class="icon-wall">/</span>
+            </button>
+        </div>
+        <p class="hint-text">Scroll to resize | Drag rotation handle to rotate | Delete key to remove</p>
+    </div>
+
+    <div class="modal" id="winModal">
+        <div class="modal-content">
+            <h2>You Win!</h2>
+            <p>The ball landed in the cup!</p>
+            <br>
+            <button class="btn btn-primary" onclick="continuePlay()">Continue Playing</button>
+            <button class="btn btn-secondary" onclick="goToMenu()">Back to Menu</button>
+        </div>
+    </div>
+
+    <div class="settings-overlay" id="settingsOverlay" onclick="closeSettings()"></div>
+    <div class="settings-panel" id="settingsPanel">
+        <h2>Settings</h2>
+        <label>Gravity: <span id="gravityValue">0.5</span></label>
+        <input type="range" id="gravitySlider" min="0.1" max="2" step="0.1" value="0.5" onchange="updateGravity(this.value)">
+        <label>Bounciness: <span id="bouncinessValue">70</span>%</label>
+        <input type="range" id="bouncinessSlider" min="0" max="100" step="5" value="70" onchange="updateBounciness(this.value)">
+        <label>Friction: <span id="frictionValue">50</span>%</label>
+        <input type="range" id="frictionSlider" min="0" max="100" step="5" value="50" onchange="updateFriction(this.value)">
+        <br><br>
+        <button class="btn btn-primary" onclick="closeSettings()">Close</button>
+    </div>
+
+    <script>
+        const GameState = { MENU: 'menu', PLAYING: 'playing', EDITING: 'editing' };
+        const FLOOR_Y = 550; // Fixed world Y position for the floor
+        let currentState = GameState.MENU;
+        let currentLevelIndex = -1;
+        let levels = [];
+        // Physics constants are now per-level (stored in currentLevel.gravity, .bounciness, .friction)
+
+        // Editor state
+        let gameCanvas, gameCtx, editorCanvas, editorCtx;
+        let ball, currentLevel;
+        let selectedTool = 'select';
+        let selectedObject = null;
+        let isDragging = false;
+        let isResizing = false;
+        let isRotating = false;
+        let isDrawingWall = false;
+        let wallStartPoint = null;
+        let dragStart = { x: 0, y: 0 };
+        let resizeHandle = null;
+        let isLaunching = false;
+        let launchStart = { x: 0, y: 0 };
+        let lastMouseX = 0, lastMouseY = 0;
+        let ballStoppedTimer = 0;
+        let lastLaunchVx = 0, lastLaunchVy = 0; // Track last launch direction for hint
+
+        // Camera state for game view
+        let cameraX = 0, cameraY = 0, cameraZoom = 1;
+        let isPanning = false;
+        let panStart = { x: 0, y: 0 };
+
+        // Camera state for editor view
+        let editorCameraX = 0, editorCameraY = 0, editorCameraZoom = 1;
+        let isEditorPanning = false;
+        let editorPanStart = { x: 0, y: 0 };
+
+        // ==================== OBJECT CLASSES ====================
+        class GameObject {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.type = type;
+                this.rotation = 0;
+                this.width = 60;
+                this.height = 20;
+                this.radius = 20;
+            }
+
+            draw(ctx) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation * Math.PI / 180);
+                this.drawShape(ctx);
+                ctx.restore();
+            }
+
+            drawShape(ctx) {}
+
+            getBounds() {
+                return {
+                    left: this.x - this.width / 2,
+                    right: this.x + this.width / 2,
+                    top: this.y - this.height / 2,
+                    bottom: this.y + this.height / 2
+                };
+            }
+
+            containsPoint(px, py) {
+                const cos = Math.cos(-this.rotation * Math.PI / 180);
+                const sin = Math.sin(-this.rotation * Math.PI / 180);
+                const dx = px - this.x;
+                const dy = py - this.y;
+                const localX = dx * cos - dy * sin;
+                const localY = dx * sin + dy * cos;
+                return Math.abs(localX) < this.width / 2 && Math.abs(localY) < this.height / 2;
+            }
+
+            getRotationHandlePos() {
+                const dist = Math.max(this.width, this.height) / 2 + 30;
+                const angle = this.rotation * Math.PI / 180;
+                return {
+                    x: this.x + Math.sin(angle) * 0 - Math.cos(angle) * 0 + Math.sin(angle - Math.PI/2) * 0 + Math.cos(this.rotation * Math.PI / 180 - Math.PI/2) * 0,
+                    y: this.y - dist
+                };
+            }
+
+            overlaps(other) {
+                if (other.type === 'wall') return false;
+                const b1 = this.getBounds();
+                const b2 = other.getBounds();
+                return !(b1.right < b2.left || b1.left > b2.right || b1.bottom < b2.top || b1.top > b2.bottom);
+            }
+        }
+
+        class Ball {
+            constructor(x, y) {
+                this.spawnX = x;
+                this.spawnY = y;
+                this.x = x;
+                this.y = y;
+                this.vx = 0;
+                this.vy = 0;
+                this.radius = 15;
+                this.isLaunched = false;
+                this.isDead = false;
+                this.inCupTimer = 0;
+            }
+
+            reset() {
+                this.x = this.spawnX;
+                this.y = this.spawnY;
+                this.vx = 0;
+                this.vy = 0;
+                this.isLaunched = false;
+                this.isDead = false;
+                this.inCupTimer = 0;
+            }
+
+            update(canvas, objects) {
+                if (!this.isLaunched || this.isDead) return;
+
+                this.vy += currentLevel.gravity;
+
+                // Fan forces (fan points UP at rotation 0)
+                objects.forEach(obj => {
+                    if (obj.type === 'fan') {
+                        const angle = obj.rotation * Math.PI / 180;
+                        const cos = Math.cos(-angle);
+                        const sin = Math.sin(-angle);
+
+                        // Transform ball position to fan's local coordinates
+                        const dx = this.x - obj.x;
+                        const dy = this.y - obj.y;
+                        const localX = dx * cos - dy * sin;
+                        const localY = dx * sin + dy * cos;
+
+                        // Fan housing is at bottom (positive Y in local coords)
+                        const housingThickness = 22;
+                        const housingTop = obj.height / 2 - housingThickness;
+                        const airRange = obj.height - housingThickness;
+
+                        // Check if ball is in the airflow column:
+                        // - Within fan width horizontally
+                        // - Above the housing (negative Y direction in local coords)
+                        // - Within air range
+                        const inWidth = Math.abs(localX) < obj.width / 2 + this.radius;
+                        const aboveHousing = localY < housingTop + this.radius;
+                        const withinRange = localY > housingTop - airRange;
+
+                        if (inWidth && aboveHousing && withinRange) {
+                            // Direction fan is blowing (up at rotation 0)
+                            const fanDirX = Math.sin(angle);
+                            const fanDirY = -Math.cos(angle);
+                            // Constant strong force
+                            const force = 1.2;
+                            this.vx += fanDirX * force;
+                            this.vy += fanDirY * force;
+                        }
+                    }
+                });
+
+                // Limit max velocity to prevent tunneling
+                const maxSpeed = 22;
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > maxSpeed) {
+                    this.vx = (this.vx / speed) * maxSpeed;
+                    this.vy = (this.vy / speed) * maxSpeed;
+                }
+
+                // Sub-step collision detection for fast moving ball (step size of 2 pixels max)
+                const steps = Math.max(1, Math.ceil(speed / 2));
+                const stepVx = this.vx / steps;
+                const stepVy = this.vy / steps;
+                let touchingFloor = false;
+
+                for (let step = 0; step < steps; step++) {
+                    this.x += stepVx;
+                    this.y += stepVy;
+
+                    // Floor collision (fixed world position - no side walls for infinite levels)
+                    if (this.y + this.radius > FLOOR_Y) {
+                        this.y = FLOOR_Y - this.radius;
+                        touchingFloor = true;
+                        // Only bounce if moving downward to prevent glitching
+                        if (this.vy > 0) {
+                            this.vy = -this.vy * currentLevel.bounciness;
+                        }
+                    }
+
+                    // Object collisions
+                    objects.forEach(obj => this.checkCollision(obj));
+                }
+
+                // Apply friction once per frame when on floor (not in sub-steps)
+                // friction 0 = no slowdown, friction 1 = max slowdown
+                if (touchingFloor && currentLevel.friction > 0) {
+                    const frictionMultiplier = 1 - currentLevel.friction * 0.08;
+                    this.vx *= frictionMultiplier;
+                }
+
+                // Auto reset when stopped on floor
+                const finalSpeed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (finalSpeed < 0.5 && this.y + this.radius >= FLOOR_Y - 5) {
+                    ballStoppedTimer++;
+                    if (ballStoppedTimer > 90) {
+                        this.reset();
+                        ballStoppedTimer = 0;
+                    }
+                } else {
+                    ballStoppedTimer = 0;
+                }
+            }
+
+            checkCollision(obj) {
+                if (obj.type === 'cup') {
+                    this.handleCupCollision(obj);
+                } else if (obj.type === 'spike') {
+                    this.handleSpikeCollision(obj);
+                } else if (obj.type === 'wall') {
+                    this.handleLineCollision(obj.x1, obj.y1, obj.x2, obj.y2);
+                } else if (obj.type === 'trampoline') {
+                    this.handleRectCollision(obj, 1.3);
+                } else if (obj.type === 'circle') {
+                    this.handleCircleCollision(obj);
+                } else if (obj.type === 'rectangle') {
+                    this.handleRectCollision(obj, currentLevel.bounciness);
+                } else if (obj.type === 'fan') {
+                    this.handleFanCollision(obj);
+                }
+            }
+
+            handleCupCollision(cup) {
+                const hw = cup.width / 2;
+                const hh = cup.height / 2;
+                const wallThick = 8;
+                const rad = cup.rotation * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+
+                // Helper to transform local coords to world coords
+                const toWorld = (lx, ly) => ({
+                    x: cup.x + lx * cos - ly * sin,
+                    y: cup.y + lx * sin + ly * cos
+                });
+
+                // Define cup wall endpoints in local coordinates
+                // Outer walls
+                const outerTopLeft = toWorld(-hw, -hh);
+                const outerBottomLeft = toWorld(-hw, hh);
+                const outerTopRight = toWorld(hw, -hh);
+                const outerBottomRight = toWorld(hw, hh);
+
+                // Inner walls
+                const innerTopLeft = toWorld(-hw + wallThick, -hh);
+                const innerBottomLeft = toWorld(-hw + wallThick, hh - wallThick);
+                const innerTopRight = toWorld(hw - wallThick, -hh);
+                const innerBottomRight = toWorld(hw - wallThick, hh - wallThick);
+
+                // Outer wall collisions
+                this.handleLineCollision(outerTopLeft.x, outerTopLeft.y, outerBottomLeft.x, outerBottomLeft.y); // Left
+                this.handleLineCollision(outerTopRight.x, outerTopRight.y, outerBottomRight.x, outerBottomRight.y); // Right
+                this.handleLineCollision(outerBottomLeft.x, outerBottomLeft.y, outerBottomRight.x, outerBottomRight.y); // Bottom
+
+                // Inner wall collisions
+                this.handleLineCollision(innerTopLeft.x, innerTopLeft.y, innerBottomLeft.x, innerBottomLeft.y); // Left inner
+                this.handleLineCollision(innerTopRight.x, innerTopRight.y, innerBottomRight.x, innerBottomRight.y); // Right inner
+                this.handleLineCollision(innerBottomLeft.x, innerBottomLeft.y, innerBottomRight.x, innerBottomRight.y); // Bottom inner
+
+                // Check if ball is inside cup (use local coordinates)
+                const dx = this.x - cup.x;
+                const dy = this.y - cup.y;
+                const invCos = Math.cos(-rad);
+                const invSin = Math.sin(-rad);
+                const localX = dx * invCos - dy * invSin;
+                const localY = dx * invSin + dy * invCos;
+
+                const insideX = localX > -hw + wallThick && localX < hw - wallThick;
+                const insideY = localY > -hh && localY < hh - wallThick;
+
+                // Sticky floor: if ball is touching the bottom of the cup, stop it
+                const nearBottom = localY > hh - wallThick - this.radius - 5;
+                if (insideX && nearBottom) {
+                    // Apply heavy damping to stick the ball to the cup floor
+                    this.vx *= 0.7;
+                    this.vy *= 0.7;
+
+                    // If very slow, stop completely
+                    const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    if (speed < 1) {
+                        this.vx = 0;
+                        this.vy = 0;
+                    }
+                }
+
+                const isSlowEnough = Math.abs(this.vx) < 2 && Math.abs(this.vy) < 2;
+
+                if (insideX && insideY && isSlowEnough) {
+                    this.inCupTimer++;
+                    if (this.inCupTimer > 30) {
+                        this.isDead = true;
+                        showWinModal();
+                    }
+                } else {
+                    this.inCupTimer = 0;
+                }
+            }
+
+            handleLineCollision(x1, y1, x2, y2) {
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return;
+
+                // Find closest point on line segment to ball
+                const t = Math.max(0, Math.min(1, ((this.x - x1) * dx + (this.y - y1) * dy) / (len * len)));
+                const closestX = x1 + t * dx;
+                const closestY = y1 + t * dy;
+
+                const distX = this.x - closestX;
+                const distY = this.y - closestY;
+                const dist = Math.sqrt(distX * distX + distY * distY);
+
+                if (dist < this.radius && dist > 0) {
+                    // Collision! Push ball out and reflect velocity
+                    const nx = distX / dist;
+                    const ny = distY / dist;
+                    const overlap = this.radius - dist;
+
+                    this.x += nx * overlap * 1.01;
+                    this.y += ny * overlap * 1.01;
+
+                    // Reflect velocity
+                    const dot = this.vx * nx + this.vy * ny;
+                    if (dot < 0) { // Only bounce if moving towards the line
+                        this.vx = (this.vx - 2 * dot * nx) * currentLevel.bounciness;
+                        this.vy = (this.vy - 2 * dot * ny) * currentLevel.bounciness;
+                    }
+                }
+            }
+
+            handleCircleCollision(obj) {
+                const dx = this.x - obj.x;
+                const dy = this.y - obj.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const minDist = this.radius + obj.radius;
+
+                if (dist < minDist && dist > 0) {
+                    const nx = dx / dist;
+                    const ny = dy / dist;
+                    const overlap = minDist - dist;
+
+                    this.x += nx * overlap * 1.01;
+                    this.y += ny * overlap * 1.01;
+
+                    const dot = this.vx * nx + this.vy * ny;
+                    if (dot < 0) {
+                        this.vx = (this.vx - 2 * dot * nx) * currentLevel.bounciness;
+                        this.vy = (this.vy - 2 * dot * ny) * currentLevel.bounciness;
+                    }
+                }
+            }
+
+            handleRectCollision(obj, bounce) {
+                const cos = Math.cos(-obj.rotation * Math.PI / 180);
+                const sin = Math.sin(-obj.rotation * Math.PI / 180);
+                const dx = this.x - obj.x;
+                const dy = this.y - obj.y;
+                const localX = dx * cos - dy * sin;
+                const localY = dx * sin + dy * cos;
+
+                const halfW = obj.width / 2;
+                const halfH = obj.height / 2;
+                const closestX = Math.max(-halfW, Math.min(halfW, localX));
+                const closestY = Math.max(-halfH, Math.min(halfH, localY));
+
+                const distX = localX - closestX;
+                const distY = localY - closestY;
+                const dist = Math.sqrt(distX * distX + distY * distY);
+
+                if (dist < this.radius) {
+                    const overlap = this.radius - dist + 1;
+                    let nx, ny;
+                    if (dist > 0) {
+                        nx = distX / dist;
+                        ny = distY / dist;
+                    } else {
+                        // Ball center is inside rectangle, push out along shortest axis
+                        const overlapX = halfW - Math.abs(localX);
+                        const overlapY = halfH - Math.abs(localY);
+                        if (overlapX < overlapY) {
+                            nx = localX > 0 ? 1 : -1;
+                            ny = 0;
+                        } else {
+                            nx = 0;
+                            ny = localY > 0 ? 1 : -1;
+                        }
+                    }
+
+                    // Push out in world space
+                    const cos2 = Math.cos(obj.rotation * Math.PI / 180);
+                    const sin2 = Math.sin(obj.rotation * Math.PI / 180);
+                    const worldNx = nx * cos2 - ny * sin2;
+                    const worldNy = nx * sin2 + ny * cos2;
+
+                    this.x += worldNx * overlap;
+                    this.y += worldNy * overlap;
+
+                    // Reflect velocity
+                    const dot = this.vx * worldNx + this.vy * worldNy;
+                    if (dot < 0) {
+                        this.vx = (this.vx - 2 * dot * worldNx) * bounce;
+                        this.vy = (this.vy - 2 * dot * worldNy) * bounce;
+                    }
+                }
+            }
+
+            handleFanCollision(fan) {
+                // Only collide with the fan housing (fixed thickness, width controls length)
+                // Housing is at the BACK of the fan (far edge from airflow direction)
+                const housingLength = fan.width;  // Length of housing (perpendicular to airflow)
+                const housingThickness = 22;      // Fixed thickness (parallel to airflow)
+                // Housing center offset: positioned at back edge (positive Y in local coords)
+                const housingOffsetY = fan.height / 2 - housingThickness / 2;
+
+                const cos = Math.cos(-fan.rotation * Math.PI / 180);
+                const sin = Math.sin(-fan.rotation * Math.PI / 180);
+
+                // Transform ball position to fan's local coordinates
+                const dx = this.x - fan.x;
+                const dy = this.y - fan.y;
+                const localX = dx * cos - dy * sin;
+                const localY = dx * sin + dy * cos;
+
+                // Adjust for housing offset
+                const localYRelativeToHousing = localY - housingOffsetY;
+
+                const halfW = housingLength / 2;
+                const halfH = housingThickness / 2;
+                const closestX = Math.max(-halfW, Math.min(halfW, localX));
+                const closestY = Math.max(-halfH, Math.min(halfH, localYRelativeToHousing));
+
+                const distX = localX - closestX;
+                const distY = localYRelativeToHousing - closestY;
+                const dist = Math.sqrt(distX * distX + distY * distY);
+
+                if (dist < this.radius) {
+                    const overlap = this.radius - dist + 1;
+                    let nx, ny;
+                    if (dist > 0) {
+                        nx = distX / dist;
+                        ny = distY / dist;
+                    } else {
+                        const overlapX = halfW - Math.abs(localX);
+                        const overlapY = halfH - Math.abs(localYRelativeToHousing);
+                        if (overlapX < overlapY) {
+                            nx = localX > 0 ? 1 : -1;
+                            ny = 0;
+                        } else {
+                            nx = 0;
+                            ny = localYRelativeToHousing > 0 ? 1 : -1;
+                        }
+                    }
+
+                    // Push out in world space
+                    const cos2 = Math.cos(fan.rotation * Math.PI / 180);
+                    const sin2 = Math.sin(fan.rotation * Math.PI / 180);
+                    const worldNx = nx * cos2 - ny * sin2;
+                    const worldNy = nx * sin2 + ny * cos2;
+
+                    this.x += worldNx * overlap;
+                    this.y += worldNy * overlap;
+
+                    // Reflect velocity
+                    const dot = this.vx * worldNx + this.vy * worldNy;
+                    if (dot < 0) {
+                        this.vx = (this.vx - 2 * dot * worldNx) * currentLevel.bounciness;
+                        this.vy = (this.vy - 2 * dot * worldNy) * currentLevel.bounciness;
+                    }
+                }
+            }
+
+            handleSpikeCollision(spike) {
+                // Get the three vertices of the spike triangle in world coordinates
+                const rad = spike.rotation * Math.PI / 180;
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
+
+                // Local triangle vertices (spike points up at rotation 0)
+                const localVerts = [
+                    { x: 0, y: -spike.height / 2 },           // Tip
+                    { x: -spike.width / 2, y: spike.height / 2 },  // Bottom left
+                    { x: spike.width / 2, y: spike.height / 2 }    // Bottom right
+                ];
+
+                // Transform to world coordinates
+                const worldVerts = localVerts.map(v => ({
+                    x: spike.x + v.x * cos - v.y * sin,
+                    y: spike.y + v.x * sin + v.y * cos
+                }));
+
+                // Check collision with each edge of the triangle
+                let hitEdge = false;
+                for (let i = 0; i < 3; i++) {
+                    const v1 = worldVerts[i];
+                    const v2 = worldVerts[(i + 1) % 3];
+
+                    // Check if ball collides with this edge
+                    const dx = v2.x - v1.x;
+                    const dy = v2.y - v1.y;
+                    const len = Math.sqrt(dx * dx + dy * dy);
+                    if (len === 0) continue;
+
+                    const t = Math.max(0, Math.min(1, ((this.x - v1.x) * dx + (this.y - v1.y) * dy) / (len * len)));
+                    const closestX = v1.x + t * dx;
+                    const closestY = v1.y + t * dy;
+                    const distX = this.x - closestX;
+                    const distY = this.y - closestY;
+                    const dist = Math.sqrt(distX * distX + distY * distY);
+
+                    if (dist < this.radius) {
+                        hitEdge = true;
+                        // Check if this is the tip (edge 0 connects tip to bottom-left, edge 2 connects bottom-right to tip)
+                        const isTipEdge = (i === 0 || i === 2);
+                        if (isTipEdge) {
+                            // Death on tip edges
+                            this.isDead = true;
+                            setTimeout(() => this.reset(), 1000);
+                            return;
+                        } else {
+                            // Bounce off base edge
+                            if (dist > 0) {
+                                const nx = distX / dist;
+                                const ny = distY / dist;
+                                const overlap = this.radius - dist;
+                                this.x += nx * overlap * 1.01;
+                                this.y += ny * overlap * 1.01;
+
+                                const dot = this.vx * nx + this.vy * ny;
+                                if (dot < 0) {
+                                    this.vx = (this.vx - 2 * dot * nx) * currentLevel.bounciness;
+                                    this.vy = (this.vy - 2 * dot * ny) * currentLevel.bounciness;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Also check if ball center is inside the triangle (for fast-moving balls)
+                if (!hitEdge && this.pointInTriangle(this.x, this.y, worldVerts[0], worldVerts[1], worldVerts[2])) {
+                    this.isDead = true;
+                    setTimeout(() => this.reset(), 1000);
+                }
+            }
+
+            pointInTriangle(px, py, v1, v2, v3) {
+                const sign = (p1, p2, p3) => (p1.x - p3.x) * (p2.y - p3.y) - (p2.x - p3.x) * (p1.y - p3.y);
+                const d1 = sign({x: px, y: py}, v1, v2);
+                const d2 = sign({x: px, y: py}, v2, v3);
+                const d3 = sign({x: px, y: py}, v3, v1);
+                const hasNeg = (d1 < 0) || (d2 < 0) || (d3 < 0);
+                const hasPos = (d1 > 0) || (d2 > 0) || (d3 > 0);
+                return !(hasNeg && hasPos);
+            }
+
+            draw(ctx) {
+                if (this.isDead) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.radius * 2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+                    ctx.fill();
+                    return;
+                }
+
+                ctx.beginPath();
+                ctx.arc(this.x + 3, this.y + 3, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.fill();
+
+                const gradient = ctx.createRadialGradient(this.x - 5, this.y - 5, 0, this.x, this.y, this.radius);
+                gradient.addColorStop(0, '#ff8a8a');
+                gradient.addColorStop(1, '#ff4757');
+
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = '#cc3344';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        class Trampoline extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'trampoline');
+                this.width = 80;
+                this.height = 15;
+            }
+
+            drawShape(ctx) {
+                ctx.fillStyle = '#ffe66d';
+                ctx.strokeStyle = '#ccb800';
+                ctx.lineWidth = 2;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+
+                ctx.strokeStyle = '#888';
+                for (let i = -this.width/2 + 10; i < this.width/2; i += 15) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, this.height/2);
+                    ctx.lineTo(i, this.height/2 + 10);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        class Spike extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'spike');
+                this.width = 30;
+                this.height = 30;
+            }
+
+            drawShape(ctx) {
+                ctx.fillStyle = '#ff4757';
+                ctx.strokeStyle = '#cc0000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, -this.height/2);
+                ctx.lineTo(this.width/2, this.height/2);
+                ctx.lineTo(-this.width/2, this.height/2);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+
+        class Cup extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'cup');
+                this.width = 70;
+                this.height = 50;
+            }
+
+            drawShape(ctx) {
+                const wallThick = 8;
+                ctx.fillStyle = '#4ecdc4';
+                ctx.strokeStyle = '#2d9d94';
+                ctx.lineWidth = 2;
+
+                // Left wall
+                ctx.fillRect(-this.width/2, -this.height/2, wallThick, this.height);
+                // Right wall
+                ctx.fillRect(this.width/2 - wallThick, -this.height/2, wallThick, this.height);
+                // Bottom wall
+                ctx.fillRect(-this.width/2, this.height/2 - wallThick, this.width, wallThick);
+
+                // Inner shading
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(-this.width/2 + wallThick, -this.height/2 + 5, this.width - wallThick*2, this.height - wallThick - 5);
+
+                // Outline
+                ctx.strokeStyle = '#2d9d94';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-this.width/2, -this.height/2);
+                ctx.lineTo(-this.width/2, this.height/2);
+                ctx.lineTo(this.width/2, this.height/2);
+                ctx.lineTo(this.width/2, -this.height/2);
+                ctx.stroke();
+
+                // Inner edge
+                ctx.strokeStyle = '#3dd9d0';
+                ctx.beginPath();
+                ctx.moveTo(-this.width/2 + wallThick, -this.height/2);
+                ctx.lineTo(-this.width/2 + wallThick, this.height/2 - wallThick);
+                ctx.lineTo(this.width/2 - wallThick, this.height/2 - wallThick);
+                ctx.lineTo(this.width/2 - wallThick, -this.height/2);
+                ctx.stroke();
+            }
+        }
+
+        class Fan extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'fan');
+                this.width = 70;   // Length of fan housing (perpendicular to airflow)
+                this.height = 120; // Air range (how far air blows, parallel to airflow)
+                this.animFrame = 0;
+            }
+
+            drawShape(ctx) {
+                this.animFrame += 0.3;
+
+                // Fan is viewed from the SIDE, pointing UP at rotation 0
+                // Width = length of housing (left-right when pointing up)
+                // Height = total extent (housing at back, air extends forward)
+                const housingThickness = 22; // Fixed thickness of the fan unit
+                const housingLength = this.width; // Controlled by width
+                const airRange = this.height - housingThickness; // Air range is height minus housing
+
+                // Housing positioned at the BACK (far edge) - stays fixed when height changes
+                const housingBottom = this.height / 2;
+                const housingTop = housingBottom - housingThickness;
+
+                // Main housing body (side view - rectangular box)
+                ctx.fillStyle = '#4a4a5a';
+                ctx.beginPath();
+                ctx.roundRect(-housingLength/2, housingTop, housingLength, housingThickness, 3);
+                ctx.fill();
+                ctx.strokeStyle = '#2a2a3a';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Motor housing bulge on left side
+                ctx.fillStyle = '#3a3a4a';
+                ctx.beginPath();
+                ctx.roundRect(-housingLength/2 - 8, housingTop + 4, 14, housingThickness - 8, 2);
+                ctx.fill();
+                ctx.strokeStyle = '#2a2a3a';
+                ctx.stroke();
+
+                // Vent grille on top (where air exits)
+                ctx.strokeStyle = '#5a5a6a';
+                ctx.lineWidth = 2;
+                const slotCount = Math.max(3, Math.floor(housingLength / 12));
+                const slotSpacing = (housingLength - 20) / slotCount;
+                for (let i = 0; i < slotCount; i++) {
+                    const slotX = -housingLength/2 + 12 + i * slotSpacing;
+                    ctx.beginPath();
+                    ctx.moveTo(slotX, housingTop);
+                    ctx.lineTo(slotX + slotSpacing * 0.6, housingTop);
+                    ctx.stroke();
+                }
+
+                // Internal blade movement hint (shimmer effect through vents)
+                const shimmer = (Math.sin(this.animFrame * 3) + 1) * 0.15 + 0.1;
+                ctx.fillStyle = `rgba(100, 140, 180, ${shimmer})`;
+                ctx.fillRect(-housingLength/2 + 8, housingTop + 2, housingLength - 16, 5);
+
+                // Bottom detail strip
+                ctx.fillStyle = '#353545';
+                ctx.fillRect(-housingLength/2 + 3, housingBottom - 5, housingLength - 6, 4);
+
+                // Feet/stands
+                ctx.fillStyle = '#333';
+                ctx.fillRect(-housingLength/2 + 8, housingBottom - 2, 8, 4);
+                ctx.fillRect(housingLength/2 - 16, housingBottom - 2, 8, 4);
+
+                // Animated air streaks shooting UP from vents
+                ctx.lineCap = 'round';
+                const streakCount = Math.max(6, Math.floor(housingLength / 10));
+                for (let i = 0; i < streakCount; i++) {
+                    const seed = i * 3.7 + 0.5;
+                    // X spread evenly across fan length
+                    const xBase = ((i + 0.5) / streakCount - 0.5) * (housingLength - 20);
+                    // Y travels upward based on airRange
+                    const yProgress = ((seed * 2.1 + this.animFrame * 7) % airRange);
+                    const particleX = xBase + Math.sin(seed * 2.5 + this.animFrame) * 3;
+                    const particleY = housingTop - yProgress - 3;
+
+                    // Fade out as streaks travel further
+                    const alpha = Math.max(0, 0.55 - yProgress / airRange * 0.6);
+                    const streakLength = 12 + (seed % 8);
+
+                    if (alpha > 0.02) {
+                        ctx.strokeStyle = `rgba(170, 220, 255, ${alpha})`;
+                        ctx.lineWidth = 1.5;
+                        ctx.beginPath();
+                        ctx.moveTo(particleX, particleY);
+                        ctx.lineTo(particleX, particleY + streakLength);
+                        ctx.stroke();
+                    }
+                }
+
+                // Small arrow indicator at edge of air range
+                const arrowY = housingTop - airRange + 5;
+                ctx.fillStyle = 'rgba(170, 220, 255, 0.2)';
+                ctx.beginPath();
+                ctx.moveTo(0, arrowY);
+                ctx.lineTo(-4, arrowY + 7);
+                ctx.lineTo(4, arrowY + 7);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        class Circle extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'circle');
+                this.radius = 30;
+                this.width = 60;
+                this.height = 60;
+            }
+
+            drawShape(ctx) {
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, this.radius);
+                gradient.addColorStop(0, '#a8d5ff');
+                gradient.addColorStop(1, '#74b9ff');
+                ctx.beginPath();
+                ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                ctx.strokeStyle = '#4a9eff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            containsPoint(px, py) {
+                const dx = px - this.x;
+                const dy = py - this.y;
+                return Math.sqrt(dx*dx + dy*dy) < this.radius;
+            }
+        }
+
+        class Rectangle extends GameObject {
+            constructor(x, y) {
+                super(x, y, 'rectangle');
+                this.width = 100;
+                this.height = 20;
+            }
+
+            drawShape(ctx) {
+                ctx.fillStyle = '#fd79a8';
+                ctx.strokeStyle = '#e84393';
+                ctx.lineWidth = 2;
+                ctx.fillRect(-this.width/2, -this.height/2, this.width, this.height);
+                ctx.strokeRect(-this.width/2, -this.height/2, this.width, this.height);
+            }
+        }
+
+        class Wall {
+            constructor(x1, y1, x2, y2) {
+                this.type = 'wall';
+                this.x1 = x1;
+                this.y1 = y1;
+                this.x2 = x2;
+                this.y2 = y2;
+                this.x = (x1 + x2) / 2;
+                this.y = (y1 + y2) / 2;
+                this.width = Math.abs(x2 - x1);
+                this.height = Math.abs(y2 - y1);
+                this.rotation = 0;
+            }
+
+            draw(ctx) {
+                ctx.strokeStyle = '#dfe6e9';
+                ctx.lineWidth = 4;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(this.x1, this.y1);
+                ctx.lineTo(this.x2, this.y2);
+                ctx.stroke();
+
+                // End caps
+                ctx.fillStyle = '#dfe6e9';
+                ctx.beginPath();
+                ctx.arc(this.x1, this.y1, 4, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(this.x2, this.y2, 4, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            containsPoint(px, py) {
+                const dx = this.x2 - this.x1;
+                const dy = this.y2 - this.y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return Math.sqrt((px-this.x1)**2 + (py-this.y1)**2) < 10;
+
+                const t = Math.max(0, Math.min(1, ((px - this.x1) * dx + (py - this.y1) * dy) / (len * len)));
+                const closestX = this.x1 + t * dx;
+                const closestY = this.y1 + t * dy;
+                const dist = Math.sqrt((px - closestX)**2 + (py - closestY)**2);
+                return dist < 10;
+            }
+
+            getBounds() {
+                return {
+                    left: Math.min(this.x1, this.x2),
+                    right: Math.max(this.x1, this.x2),
+                    top: Math.min(this.y1, this.y2),
+                    bottom: Math.max(this.y1, this.y2)
+                };
+            }
+
+            snapToNearbyWalls(walls, threshold = 15) {
+                walls.forEach(other => {
+                    if (other === this) return;
+                    [[this, 'x1', 'y1'], [this, 'x2', 'y2']].forEach(([w, xk, yk]) => {
+                        [[other.x1, other.y1], [other.x2, other.y2]].forEach(([ox, oy]) => {
+                            const dist = Math.sqrt((w[xk] - ox)**2 + (w[yk] - oy)**2);
+                            if (dist < threshold && dist > 0) {
+                                w[xk] = ox;
+                                w[yk] = oy;
+                            }
+                        });
+                    });
+                });
+                this.x = (this.x1 + this.x2) / 2;
+                this.y = (this.y1 + this.y2) / 2;
+            }
+        }
+
+        // ==================== LEVEL CLASS ====================
+        class Level {
+            constructor(name = 'New Level') {
+                this.name = name;
+                this.ballSpawn = { x: 100, y: 300 };
+                this.objects = [];
+                // Per-level physics settings
+                this.gravity = 0.5;
+                this.bounciness = 0.7;
+                this.friction = 0.5;
+            }
+
+            toJSON() {
+                return {
+                    name: this.name,
+                    ballSpawn: this.ballSpawn,
+                    gravity: this.gravity,
+                    bounciness: this.bounciness,
+                    friction: this.friction,
+                    objects: this.objects.map(obj => {
+                        if (obj.type === 'wall') {
+                            return { type: 'wall', x1: obj.x1, y1: obj.y1, x2: obj.x2, y2: obj.y2 };
+                        }
+                        return {
+                            type: obj.type, x: obj.x, y: obj.y,
+                            rotation: obj.rotation, width: obj.width, height: obj.height, radius: obj.radius
+                        };
+                    })
+                };
+            }
+
+            static fromJSON(data) {
+                const level = new Level(data.name);
+                level.ballSpawn = data.ballSpawn;
+                // Load physics settings with defaults for backwards compatibility
+                level.gravity = data.gravity !== undefined ? data.gravity : 0.5;
+                level.bounciness = data.bounciness !== undefined ? data.bounciness : 0.7;
+                level.friction = data.friction !== undefined ? data.friction : 0.5;
+                level.objects = data.objects.map(objData => {
+                    if (objData.type === 'wall') {
+                        return new Wall(objData.x1, objData.y1, objData.x2, objData.y2);
+                    }
+                    let obj;
+                    switch (objData.type) {
+                        case 'trampoline': obj = new Trampoline(objData.x, objData.y); break;
+                        case 'spike': obj = new Spike(objData.x, objData.y); break;
+                        case 'cup': obj = new Cup(objData.x, objData.y); break;
+                        case 'fan': obj = new Fan(objData.x, objData.y); break;
+                        case 'circle': obj = new Circle(objData.x, objData.y); break;
+                        case 'rectangle': obj = new Rectangle(objData.x, objData.y); break;
+                        default: return null;
+                    }
+                    if (obj) {
+                        obj.rotation = objData.rotation || 0;
+                        obj.width = objData.width || obj.width;
+                        obj.height = objData.height || obj.height;
+                        if (obj.radius !== undefined) obj.radius = objData.radius || obj.radius;
+                    }
+                    return obj;
+                }).filter(obj => obj !== null);
+                return level;
+            }
+        }
+
+        // ==================== INITIALIZATION ====================
+        function init() {
+            try {
+                gameCanvas = document.getElementById('gameCanvas');
+                gameCtx = gameCanvas.getContext('2d');
+                editorCanvas = document.getElementById('editorCanvas');
+                editorCtx = editorCanvas.getContext('2d');
+
+                resizeCanvases();
+                window.addEventListener('resize', resizeCanvases);
+
+                loadLevels();
+                renderMenu();
+                setupEventListeners();
+                gameLoop();
+                console.log('Game initialized. Levels:', levels.length);
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('levelsContainer').innerHTML = '<p style="color: red;">Error loading game.</p>';
+            }
+        }
+
+        function resizeCanvases() {
+            gameCanvas.width = window.innerWidth;
+            gameCanvas.height = window.innerHeight;
+            editorCanvas.width = window.innerWidth;
+            editorCanvas.height = window.innerHeight;
+        }
+
+        function loadLevels() {
+            try {
+                const saved = localStorage.getItem('bouncyBallLevels');
+                if (saved) {
+                    levels = JSON.parse(saved).map(d => Level.fromJSON(d));
+                    if (levels.length === 0) throw new Error('Empty');
+                } else throw new Error('No data');
+            } catch (e) {
+                const defaultLevel = new Level('Tutorial');
+                defaultLevel.ballSpawn = { x: 150, y: 300 };
+                defaultLevel.objects = [
+                    Object.assign(new Cup(650, 480), { rotation: 0, width: 80, height: 60 }),
+                    Object.assign(new Trampoline(400, 520), { rotation: -10, width: 100 }),
+                    Object.assign(new Rectangle(280, 420), { rotation: 15, width: 120 })
+                ];
+                levels = [defaultLevel];
+                saveLevels();
+            }
+        }
+
+        function saveLevels() {
+            localStorage.setItem('bouncyBallLevels', JSON.stringify(levels.map(l => l.toJSON())));
+        }
+
+        function resetGame() {
+            if (confirm('Delete all levels?')) {
+                localStorage.removeItem('bouncyBallLevels');
+                location.reload();
+            }
+        }
+
+        // ==================== MENU ====================
+        function renderMenu() {
+            const container = document.getElementById('levelsContainer');
+            container.innerHTML = '';
+
+            levels.forEach((level, index) => {
+                const box = document.createElement('div');
+                box.className = 'level-box';
+                box.onclick = (e) => {
+                    if (!e.target.classList.contains('delete-btn') && !e.target.classList.contains('edit-btn')) {
+                        startLevel(index);
+                    }
+                };
+
+                const miniCanvas = document.createElement('canvas');
+                miniCanvas.width = 150;
+                miniCanvas.height = 80;
+                renderLevelPreview(miniCanvas, level);
+
+                const nameDiv = document.createElement('div');
+                nameDiv.className = 'level-name';
+                nameDiv.textContent = level.name;
+
+                const editBtn = document.createElement('button');
+                editBtn.className = 'edit-btn';
+                editBtn.textContent = '✎';
+                editBtn.onclick = (e) => { e.stopPropagation(); editLevel(index); };
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'x';
+                deleteBtn.onclick = (e) => { e.stopPropagation(); deleteLevel(index); };
+
+                box.appendChild(miniCanvas);
+                box.appendChild(nameDiv);
+                box.appendChild(editBtn);
+                box.appendChild(deleteBtn);
+                container.appendChild(box);
+            });
+
+            const createBox = document.createElement('div');
+            createBox.className = 'level-box create-new';
+            createBox.textContent = '+';
+            createBox.onclick = createNewLevel;
+            container.appendChild(createBox);
+        }
+
+        function renderLevelPreview(canvas, level) {
+            const ctx = canvas.getContext('2d');
+            const scaleX = canvas.width / window.innerWidth;
+            const scaleY = canvas.height / window.innerHeight;
+
+            ctx.fillStyle = '#1a1a3a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#333';
+            ctx.fillRect(0, canvas.height - 5, canvas.width, 5);
+
+            ctx.save();
+            ctx.scale(scaleX, scaleY);
+            level.objects.forEach(obj => obj.draw(ctx));
+            ctx.beginPath();
+            ctx.arc(level.ballSpawn.x, level.ballSpawn.y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = '#ff4757';
+            ctx.fill();
+            ctx.restore();
+        }
+
+        function deleteLevel(index) {
+            if (confirm('Delete this level?')) {
+                levels.splice(index, 1);
+                saveLevels();
+                renderMenu();
+            }
+        }
+
+        // ==================== SCREENS ====================
+        function showScreen(screenId) {
+            document.getElementById('menuScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('editorScreen').style.display = 'none';
+            document.getElementById(screenId).style.display = screenId === 'menuScreen' ? 'flex' : 'block';
+            document.body.classList.toggle('no-scroll', screenId !== 'menuScreen');
+        }
+
+        function goToMenu() {
+            currentState = GameState.MENU;
+            // Close any open modals
+            document.getElementById('winModal').classList.remove('active');
+            document.getElementById('settingsOverlay').classList.remove('active');
+            document.getElementById('settingsPanel').classList.remove('active');
+            // Reset camera
+            cameraX = 0;
+            cameraY = 0;
+            cameraZoom = 1;
+            showScreen('menuScreen');
+            renderMenu();
+        }
+
+        function startLevel(index) {
+            currentLevelIndex = index;
+            currentLevel = levels[index];
+            ball = new Ball(currentLevel.ballSpawn.x, currentLevel.ballSpawn.y);
+            currentState = GameState.PLAYING;
+            ballStoppedTimer = 0;
+
+            // Find the cup to frame both ball spawn and cup in view
+            const cup = currentLevel.objects.find(obj => obj.type === 'cup');
+            if (cup) {
+                // Calculate bounding box containing both ball spawn and cup
+                const padding = 100;
+                const minX = Math.min(currentLevel.ballSpawn.x, cup.x - cup.width/2) - padding;
+                const maxX = Math.max(currentLevel.ballSpawn.x, cup.x + cup.width/2) + padding;
+                const minY = Math.min(currentLevel.ballSpawn.y, cup.y - cup.height/2) - padding;
+                const maxY = Math.max(currentLevel.ballSpawn.y, cup.y + cup.height/2) + padding;
+
+                const contentWidth = maxX - minX;
+                const contentHeight = maxY - minY;
+                const centerX = (minX + maxX) / 2;
+                const centerY = (minY + maxY) / 2;
+
+                // Calculate zoom to fit both in view
+                const zoomX = gameCanvas.width / contentWidth;
+                const zoomY = gameCanvas.height / contentHeight;
+                cameraZoom = Math.min(zoomX, zoomY, 1.5); // Cap at 1.5x zoom
+
+                // Center camera on midpoint between ball and cup
+                cameraX = gameCanvas.width / 2 - centerX * cameraZoom;
+                cameraY = gameCanvas.height / 2 - centerY * cameraZoom;
+            } else {
+                // No cup, just center on ball spawn
+                cameraZoom = 1;
+                cameraX = gameCanvas.width / 2 - currentLevel.ballSpawn.x * cameraZoom;
+                cameraY = gameCanvas.height / 2 - currentLevel.ballSpawn.y * cameraZoom;
+            }
+
+            showScreen('gameScreen');
+        }
+
+        function createNewLevel() {
+            const name = prompt('Level name:', 'Level ' + (levels.length + 1));
+            if (name) {
+                const newLevel = new Level(name);
+                newLevel.ballSpawn = { x: 150, y: 300 };
+                const cup = new Cup(600, 480);
+                cup.width = 80;
+                cup.height = 60;
+                newLevel.objects.push(cup);
+                levels.push(newLevel);
+                saveLevels();
+                editLevel(levels.length - 1);
+            }
+        }
+
+        function editLevel(index) {
+            currentLevelIndex = index;
+            currentLevel = levels[index];
+            ball = new Ball(currentLevel.ballSpawn.x, currentLevel.ballSpawn.y);
+            currentState = GameState.EDITING;
+            selectedObject = null;
+            // Reset editor camera
+            editorCameraX = 0;
+            editorCameraY = 0;
+            editorCameraZoom = 1;
+            showScreen('editorScreen');
+        }
+
+        function playLevel() {
+            saveLevel();
+            startLevel(currentLevelIndex);
+        }
+
+        function saveLevel() {
+            levels[currentLevelIndex] = currentLevel;
+            saveLevels();
+        }
+
+        // ==================== SETTINGS ====================
+        function openSettings() {
+            // Load current level's physics values into sliders
+            if (currentLevel) {
+                document.getElementById('gravitySlider').value = currentLevel.gravity;
+                document.getElementById('gravityValue').textContent = currentLevel.gravity;
+                document.getElementById('bouncinessSlider').value = Math.round(currentLevel.bounciness * 100);
+                document.getElementById('bouncinessValue').textContent = Math.round(currentLevel.bounciness * 100);
+                document.getElementById('frictionSlider').value = Math.round(currentLevel.friction * 100);
+                document.getElementById('frictionValue').textContent = Math.round(currentLevel.friction * 100);
+            }
+            document.getElementById('settingsOverlay').classList.add('active');
+            document.getElementById('settingsPanel').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsOverlay').classList.remove('active');
+            document.getElementById('settingsPanel').classList.remove('active');
+        }
+
+        function updateGravity(value) {
+            if (currentLevel) {
+                currentLevel.gravity = parseFloat(value);
+                saveLevels();
+            }
+            document.getElementById('gravityValue').textContent = value;
+        }
+
+        function updateBounciness(value) {
+            if (currentLevel) {
+                currentLevel.bounciness = parseInt(value) / 100;
+                saveLevels();
+            }
+            document.getElementById('bouncinessValue').textContent = value;
+        }
+
+        function updateFriction(value) {
+            if (currentLevel) {
+                currentLevel.friction = parseInt(value) / 100;
+                saveLevels();
+            }
+            document.getElementById('frictionValue').textContent = value;
+        }
+
+        function showWinModal() {
+            document.getElementById('winModal').classList.add('active');
+        }
+
+        function continuePlay() {
+            document.getElementById('winModal').classList.remove('active');
+            resetBall();
+        }
+
+        function resetBall() {
+            if (ball) ball.reset();
+            ballStoppedTimer = 0;
+            // Position camera to show both ball spawn and cup
+            if (currentLevel && gameCanvas) {
+                const cup = currentLevel.objects.find(obj => obj.type === 'cup');
+                if (cup) {
+                    const padding = 100;
+                    const minX = Math.min(currentLevel.ballSpawn.x, cup.x - cup.width/2) - padding;
+                    const maxX = Math.max(currentLevel.ballSpawn.x, cup.x + cup.width/2) + padding;
+                    const minY = Math.min(currentLevel.ballSpawn.y, cup.y - cup.height/2) - padding;
+                    const maxY = Math.max(currentLevel.ballSpawn.y, cup.y + cup.height/2) + padding;
+
+                    const contentWidth = maxX - minX;
+                    const contentHeight = maxY - minY;
+                    const centerX = (minX + maxX) / 2;
+                    const centerY = (minY + maxY) / 2;
+
+                    const zoomX = gameCanvas.width / contentWidth;
+                    const zoomY = gameCanvas.height / contentHeight;
+                    cameraZoom = Math.min(zoomX, zoomY, 1.5);
+
+                    cameraX = gameCanvas.width / 2 - centerX * cameraZoom;
+                    cameraY = gameCanvas.height / 2 - centerY * cameraZoom;
+                } else {
+                    cameraZoom = 1;
+                    cameraX = gameCanvas.width / 2 - currentLevel.ballSpawn.x * cameraZoom;
+                    cameraY = gameCanvas.height / 2 - currentLevel.ballSpawn.y * cameraZoom;
+                }
+            }
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        function setupEventListeners() {
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    selectedTool = btn.dataset.tool;
+                    selectedObject = null;
+                });
+            });
+
+            gameCanvas.addEventListener('mousedown', onGameMouseDown);
+            gameCanvas.addEventListener('mousemove', onGameMouseMove);
+            gameCanvas.addEventListener('mouseup', onGameMouseUp);
+            gameCanvas.addEventListener('mouseleave', onGameMouseLeave);
+            gameCanvas.addEventListener('wheel', onGameWheel);
+            gameCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            editorCanvas.addEventListener('mousedown', onEditorMouseDown);
+            editorCanvas.addEventListener('mousemove', onEditorMouseMove);
+            editorCanvas.addEventListener('mouseup', onEditorMouseUp);
+            editorCanvas.addEventListener('wheel', onEditorWheel);
+            editorCanvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+            document.addEventListener('keydown', onKeyDown);
+        }
+
+        function getMousePos(canvas, e) {
+            const rect = canvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        // Game events
+        function onGameMouseDown(e) {
+            const pos = getMousePos(gameCanvas, e);
+
+            // Right click for panning
+            if (e.button === 2) {
+                isPanning = true;
+                panStart = { x: e.clientX, y: e.clientY };
+                return;
+            }
+
+            if (!ball || ball.isDead) return;
+
+            // Convert screen pos to world pos for ball check
+            const worldX = (pos.x - cameraX) / cameraZoom;
+            const worldY = (pos.y - cameraY) / cameraZoom;
+            const dx = worldX - ball.x;
+            const dy = worldY - ball.y;
+            if (Math.sqrt(dx*dx + dy*dy) < (ball.radius + 20) / cameraZoom && !ball.isLaunched) {
+                isLaunching = true;
+                launchStart = { x: worldX, y: worldY };
+                // Store original camera state
+                launchOriginalZoom = cameraZoom;
+                launchOriginalCameraX = cameraX;
+                launchOriginalCameraY = cameraY;
+                // Calculate the original view center in world coords
+                launchViewCenterX = (gameCanvas.width / 2 - cameraX) / cameraZoom;
+                launchViewCenterY = (gameCanvas.height / 2 - cameraY) / cameraZoom;
+            }
+        }
+
+        let launchOriginalZoom = 1;
+        let launchOriginalCameraX = 0;
+        let launchOriginalCameraY = 0;
+        let launchViewCenterX = 0;
+        let launchViewCenterY = 0;
+
+        function onGameMouseMove(e) {
+            const pos = getMousePos(gameCanvas, e);
+
+            // Handle panning
+            if (isPanning) {
+                cameraX += e.clientX - panStart.x;
+                cameraY += e.clientY - panStart.y;
+                panStart = { x: e.clientX, y: e.clientY };
+                return;
+            }
+
+            // Convert to world coordinates
+            lastMouseX = (pos.x - cameraX) / cameraZoom;
+            lastMouseY = (pos.y - cameraY) / cameraZoom;
+
+            // Zoom out when pulling back, keeping original view center
+            if (isLaunching && ball && !ball.isLaunched) {
+                // Cap the effective pull distance at max power (200 pixels = 100% power)
+                const maxPullDist = 200;
+                const pullDx = lastMouseX - ball.x;
+                const pullDy = lastMouseY - ball.y;
+                const pullDist = Math.sqrt(pullDx * pullDx + pullDy * pullDy);
+
+                // Calculate capped mouse position (don't expand beyond max power distance)
+                let effectiveMouseX = lastMouseX;
+                let effectiveMouseY = lastMouseY;
+                if (pullDist > maxPullDist) {
+                    const scale = maxPullDist / pullDist;
+                    effectiveMouseX = ball.x + pullDx * scale;
+                    effectiveMouseY = ball.y + pullDy * scale;
+                }
+
+                // Calculate how much extra space is needed to show the capped position
+                const originalHalfWidth = gameCanvas.width / 2 / launchOriginalZoom;
+                const originalHalfHeight = gameCanvas.height / 2 / launchOriginalZoom;
+
+                // Distance from view center to capped mouse position
+                const mouseDistX = Math.abs(effectiveMouseX - launchViewCenterX);
+                const mouseDistY = Math.abs(effectiveMouseY - launchViewCenterY);
+
+                // Calculate required zoom to fit with padding
+                const padding = 250;
+                const neededHalfWidth = Math.max(originalHalfWidth, mouseDistX + padding);
+                const neededHalfHeight = Math.max(originalHalfHeight, mouseDistY + padding);
+
+                const zoomForWidth = gameCanvas.width / 2 / neededHalfWidth;
+                const zoomForHeight = gameCanvas.height / 2 / neededHalfHeight;
+                const targetZoom = Math.min(zoomForWidth, zoomForHeight, launchOriginalZoom);
+
+                // Set zoom instantly
+                cameraZoom = targetZoom;
+
+                // Keep the same view center
+                cameraX = gameCanvas.width / 2 - launchViewCenterX * cameraZoom;
+                cameraY = gameCanvas.height / 2 - launchViewCenterY * cameraZoom;
+            }
+        }
+
+        function onGameMouseUp(e) {
+            if (isPanning) {
+                isPanning = false;
+                return;
+            }
+
+            if (!isLaunching || !ball) return;
+            const pos = getMousePos(gameCanvas, e);
+            const worldX = (pos.x - cameraX) / cameraZoom;
+            const worldY = (pos.y - cameraY) / cameraZoom;
+
+            const dx = launchStart.x - worldX;
+            const dy = launchStart.y - worldY;
+            const power = Math.min(Math.sqrt(dx*dx + dy*dy) / 10, 20);
+            const angle = Math.atan2(dy, dx);
+
+            ball.vx = Math.cos(angle) * power;
+            ball.vy = Math.sin(angle) * power;
+            ball.isLaunched = true;
+            isLaunching = false;
+
+            // Store last launch direction for hint
+            lastLaunchVx = ball.vx;
+            lastLaunchVy = ball.vy;
+        }
+
+        function onGameMouseLeave(e) {
+            // When mouse leaves the canvas while launching, don't fire the ball
+            // Just clamp mouse position to edge of canvas
+            if (isPanning) {
+                isPanning = false;
+                return;
+            }
+
+            if (!isLaunching || !ball || ball.isLaunched) return;
+
+            // Clamp mouse position to canvas edge
+            const rect = gameCanvas.getBoundingClientRect();
+            let clampedX = Math.max(0, Math.min(gameCanvas.width, e.clientX - rect.left));
+            let clampedY = Math.max(0, Math.min(gameCanvas.height, e.clientY - rect.top));
+
+            lastMouseX = (clampedX - cameraX) / cameraZoom;
+            lastMouseY = (clampedY - cameraY) / cameraZoom;
+        }
+
+        function onGameWheel(e) {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            const pos = getMousePos(gameCanvas, e);
+
+            // Zoom towards mouse position
+            const worldX = (pos.x - cameraX) / cameraZoom;
+            const worldY = (pos.y - cameraY) / cameraZoom;
+
+            cameraZoom *= zoomFactor;
+            cameraZoom = Math.max(0.25, Math.min(3, cameraZoom));
+
+            cameraX = pos.x - worldX * cameraZoom;
+            cameraY = pos.y - worldY * cameraZoom;
+        }
+
+        // Helper to convert screen pos to world pos for editor
+        function screenToWorldEditor(screenPos) {
+            return {
+                x: (screenPos.x - editorCameraX) / editorCameraZoom,
+                y: (screenPos.y - editorCameraY) / editorCameraZoom
+            };
+        }
+
+        // Editor events
+        function onEditorMouseDown(e) {
+            const screenPos = getMousePos(editorCanvas, e);
+            const pos = screenToWorldEditor(screenPos);
+
+            // Right click for panning
+            if (e.button === 2) {
+                isEditorPanning = true;
+                editorPanStart = { x: e.clientX, y: e.clientY };
+                return;
+            }
+
+            if (selectedTool === 'wall') {
+                isDrawingWall = true;
+                wallStartPoint = pos;
+                return;
+            }
+
+            if (selectedTool === 'select') {
+                // Check rotation handle first
+                if (selectedObject && selectedObject !== 'ballSpawn' && selectedObject.type !== 'wall') {
+                    const handleDist = Math.max(selectedObject.width, selectedObject.height) / 2 + 30;
+                    const rad = selectedObject.rotation * Math.PI / 180;
+                    const handleX = selectedObject.x + Math.sin(rad) * handleDist;
+                    const handleY = selectedObject.y - Math.cos(rad) * handleDist;
+                    const distToHandle = Math.sqrt((pos.x - handleX)**2 + (pos.y - handleY)**2);
+                    if (distToHandle < 12 / editorCameraZoom) {
+                        isRotating = true;
+                        return;
+                    }
+                }
+
+                // Check resize handles
+                if (selectedObject && selectedObject !== 'ballSpawn' && selectedObject.type !== 'wall') {
+                    const handles = getResizeHandles(selectedObject);
+                    for (const [name, hpos] of Object.entries(handles)) {
+                        if (Math.sqrt((pos.x - hpos.x)**2 + (pos.y - hpos.y)**2) < 8 / editorCameraZoom) {
+                            isResizing = true;
+                            resizeHandle = name;
+                            dragStart = pos;
+                            return;
+                        }
+                    }
+                }
+
+                // Try to select object
+                selectedObject = null;
+                for (let i = currentLevel.objects.length - 1; i >= 0; i--) {
+                    if (currentLevel.objects[i].containsPoint(pos.x, pos.y)) {
+                        selectedObject = currentLevel.objects[i];
+                        break;
+                    }
+                }
+
+                // Check ball spawn
+                const dx = pos.x - currentLevel.ballSpawn.x;
+                const dy = pos.y - currentLevel.ballSpawn.y;
+                if (Math.sqrt(dx*dx + dy*dy) < 20 / editorCameraZoom) {
+                    selectedObject = 'ballSpawn';
+                }
+
+                if (selectedObject) {
+                    isDragging = true;
+                    dragStart = pos;
+                }
+            } else if (selectedTool === 'ball') {
+                currentLevel.ballSpawn = { x: pos.x, y: pos.y };
+                ball = new Ball(pos.x, pos.y);
+            } else {
+                let newObj;
+                switch (selectedTool) {
+                    case 'cup': newObj = new Cup(pos.x, pos.y); break;
+                    case 'trampoline': newObj = new Trampoline(pos.x, pos.y); break;
+                    case 'spike': newObj = new Spike(pos.x, pos.y); break;
+                    case 'fan': newObj = new Fan(pos.x, pos.y); break;
+                    case 'circle': newObj = new Circle(pos.x, pos.y); break;
+                    case 'rectangle': newObj = new Rectangle(pos.x, pos.y); break;
+                }
+                if (newObj && !wouldOverlap(newObj)) {
+                    // Auto-orient spikes near walls
+                    if (newObj.type === 'spike') {
+                        autoOrientSpike(newObj, editorCanvas, currentLevel.objects);
+                    }
+                    currentLevel.objects.push(newObj);
+                    selectedObject = newObj;
+                }
+            }
+        }
+
+        function onEditorMouseMove(e) {
+            const screenPos = getMousePos(editorCanvas, e);
+            const pos = screenToWorldEditor(screenPos);
+            lastMouseX = pos.x;
+            lastMouseY = pos.y;
+
+            // Handle editor panning
+            if (isEditorPanning) {
+                editorCameraX += e.clientX - editorPanStart.x;
+                editorCameraY += e.clientY - editorPanStart.y;
+                editorPanStart = { x: e.clientX, y: e.clientY };
+                return;
+            }
+
+            if (isDrawingWall) return;
+
+            if (isRotating && selectedObject && selectedObject !== 'ballSpawn') {
+                const dx = pos.x - selectedObject.x;
+                const dy = pos.y - selectedObject.y;
+                // Calculate rotation so handle follows mouse and object rotates with it
+                selectedObject.rotation = Math.atan2(dx, -dy) * 180 / Math.PI;
+                return;
+            }
+
+            if (isResizing && selectedObject && selectedObject !== 'ballSpawn') {
+                const dx = pos.x - dragStart.x;
+                const dy = pos.y - dragStart.y;
+
+                if (selectedObject.type === 'circle') {
+                    const delta = (dx + dy) / 2;
+                    selectedObject.radius = Math.max(15, selectedObject.radius + delta);
+                    selectedObject.width = selectedObject.radius * 2;
+                    selectedObject.height = selectedObject.radius * 2;
+                } else {
+                    if (resizeHandle.includes('right')) selectedObject.width = Math.max(20, selectedObject.width + dx);
+                    if (resizeHandle.includes('left')) { selectedObject.width = Math.max(20, selectedObject.width - dx); selectedObject.x += dx/2; }
+                    if (resizeHandle.includes('bottom')) selectedObject.height = Math.max(10, selectedObject.height + dy);
+                    if (resizeHandle.includes('top')) { selectedObject.height = Math.max(10, selectedObject.height - dy); selectedObject.y += dy/2; }
+                }
+                dragStart = pos;
+                return;
+            }
+
+            if (isDragging && selectedObject) {
+                if (selectedObject === 'ballSpawn') {
+                    currentLevel.ballSpawn.x = pos.x;
+                    currentLevel.ballSpawn.y = pos.y;
+                    ball = new Ball(pos.x, pos.y);
+                } else if (selectedObject.type === 'wall') {
+                    const dx = pos.x - dragStart.x;
+                    const dy = pos.y - dragStart.y;
+                    selectedObject.x1 += dx;
+                    selectedObject.y1 += dy;
+                    selectedObject.x2 += dx;
+                    selectedObject.y2 += dy;
+                    selectedObject.x += dx;
+                    selectedObject.y += dy;
+                    dragStart = pos;
+                } else {
+                    const oldX = selectedObject.x;
+                    const oldY = selectedObject.y;
+                    selectedObject.x = pos.x;
+                    selectedObject.y = pos.y;
+
+                    if (wouldOverlap(selectedObject)) {
+                        selectedObject.x = oldX;
+                        selectedObject.y = oldY;
+                    }
+                }
+            }
+        }
+
+        function onEditorMouseUp(e) {
+            if (isEditorPanning) {
+                isEditorPanning = false;
+                return;
+            }
+
+            if (isDrawingWall && wallStartPoint) {
+                const screenPos = getMousePos(editorCanvas, e);
+                const pos = screenToWorldEditor(screenPos);
+                const dist = Math.sqrt((pos.x - wallStartPoint.x)**2 + (pos.y - wallStartPoint.y)**2);
+                if (dist > 20) {
+                    const wall = new Wall(wallStartPoint.x, wallStartPoint.y, pos.x, pos.y);
+                    const walls = currentLevel.objects.filter(o => o.type === 'wall');
+                    wall.snapToNearbyWalls(walls);
+                    currentLevel.objects.push(wall);
+                    selectedObject = wall;
+                }
+            }
+
+            isDragging = false;
+            isResizing = false;
+            isRotating = false;
+            isDrawingWall = false;
+            wallStartPoint = null;
+            resizeHandle = null;
+        }
+
+        function onEditorWheel(e) {
+            e.preventDefault();
+
+            // If object is selected, resize it
+            if (selectedObject && selectedObject !== 'ballSpawn' && selectedObject.type !== 'wall') {
+                const delta = e.deltaY > 0 ? -5 : 5;
+                if (selectedObject.type === 'circle') {
+                    selectedObject.radius = Math.max(15, selectedObject.radius + delta);
+                    selectedObject.width = selectedObject.radius * 2;
+                    selectedObject.height = selectedObject.radius * 2;
+                } else {
+                    selectedObject.width = Math.max(20, selectedObject.width + delta);
+                    selectedObject.height = Math.max(10, selectedObject.height + delta * 0.3);
+                }
+            } else {
+                // No object selected - zoom camera
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const screenPos = getMousePos(editorCanvas, e);
+
+                // Zoom towards mouse position
+                const worldX = (screenPos.x - editorCameraX) / editorCameraZoom;
+                const worldY = (screenPos.y - editorCameraY) / editorCameraZoom;
+
+                editorCameraZoom *= zoomFactor;
+                editorCameraZoom = Math.max(0.25, Math.min(3, editorCameraZoom));
+
+                editorCameraX = screenPos.x - worldX * editorCameraZoom;
+                editorCameraY = screenPos.y - worldY * editorCameraZoom;
+            }
+        }
+
+        function onKeyDown(e) {
+            if (currentState === GameState.EDITING && selectedObject && selectedObject !== 'ballSpawn') {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    const index = currentLevel.objects.indexOf(selectedObject);
+                    if (index > -1) {
+                        currentLevel.objects.splice(index, 1);
+                        selectedObject = null;
+                    }
+                }
+            }
+            if (e.key === 'Escape') {
+                closeSettings();
+                document.getElementById('winModal').classList.remove('active');
+            }
+        }
+
+        function getResizeHandles(obj) {
+            const hw = obj.width / 2;
+            const hh = obj.height / 2;
+            const rad = obj.rotation * Math.PI / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+
+            // Helper to rotate a point around (0,0) then translate to object position
+            const rotatePoint = (lx, ly) => ({
+                x: obj.x + lx * cos - ly * sin,
+                y: obj.y + lx * sin + ly * cos
+            });
+
+            return {
+                'top': rotatePoint(0, -hh),
+                'bottom': rotatePoint(0, hh),
+                'left': rotatePoint(-hw, 0),
+                'right': rotatePoint(hw, 0),
+                'top-left': rotatePoint(-hw, -hh),
+                'top-right': rotatePoint(hw, -hh),
+                'bottom-left': rotatePoint(-hw, hh),
+                'bottom-right': rotatePoint(hw, hh)
+            };
+        }
+
+        function wouldOverlap(obj) {
+            for (const other of currentLevel.objects) {
+                if (other === obj) continue;
+                if (obj.overlaps && obj.overlaps(other)) return true;
+            }
+            return false;
+        }
+
+        function autoOrientSpike(spike, canvas, objects) {
+            const threshold = 60; // Distance to consider "near" a surface
+            let nearestDist = Infinity;
+            let targetRotation = 0;
+
+            // Check distance to floor (using fixed FLOOR_Y)
+            const distToFloor = FLOOR_Y - spike.y;
+            if (distToFloor < threshold && distToFloor > 0 && distToFloor < nearestDist) {
+                nearestDist = distToFloor;
+                targetRotation = 0; // Point up
+                spike.y = FLOOR_Y - spike.height / 2;
+            }
+
+            // Check distance to Wall objects
+            objects.forEach(obj => {
+                if (obj.type !== 'wall') return;
+
+                // Find closest point on wall line to spike
+                const dx = obj.x2 - obj.x1;
+                const dy = obj.y2 - obj.y1;
+                const len = Math.sqrt(dx * dx + dy * dy);
+                if (len === 0) return;
+
+                const t = Math.max(0, Math.min(1, ((spike.x - obj.x1) * dx + (spike.y - obj.y1) * dy) / (len * len)));
+                const closestX = obj.x1 + t * dx;
+                const closestY = obj.y1 + t * dy;
+                const distToWall = Math.sqrt((spike.x - closestX) ** 2 + (spike.y - closestY) ** 2);
+
+                if (distToWall < threshold && distToWall < nearestDist) {
+                    nearestDist = distToWall;
+
+                    // Calculate wall normal (perpendicular direction)
+                    const wallAngle = Math.atan2(dy, dx);
+                    // Normal is perpendicular to wall
+                    let normalAngle = wallAngle - Math.PI / 2;
+
+                    // Determine which side of the wall the spike is on
+                    const spikeToWallX = spike.x - closestX;
+                    const spikeToWallY = spike.y - closestY;
+                    const normalX = Math.cos(normalAngle);
+                    const normalY = Math.sin(normalAngle);
+                    const dotProduct = spikeToWallX * normalX + spikeToWallY * normalY;
+
+                    // If spike is on the other side, flip the normal
+                    if (dotProduct < 0) {
+                        normalAngle += Math.PI;
+                    }
+
+                    // Convert to spike rotation (spike points up at rotation 0)
+                    // So we need to rotate from "up" to the normal direction
+                    targetRotation = (normalAngle * 180 / Math.PI) + 90;
+
+                    // Snap spike base to wall
+                    spike.x = closestX + Math.cos(normalAngle) * (spike.height / 2);
+                    spike.y = closestY + Math.sin(normalAngle) * (spike.height / 2);
+                }
+            });
+
+            spike.rotation = targetRotation;
+        }
+
+        // ==================== GAME LOOP ====================
+        function gameLoop() {
+            if (currentState === GameState.PLAYING) {
+                updateGame();
+                renderGame();
+            } else if (currentState === GameState.EDITING) {
+                renderEditor();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function updateGame() {
+            if (ball && !ball.isDead) {
+                ball.update(gameCanvas, currentLevel.objects);
+            }
+        }
+
+        function renderGame() {
+            const ctx = gameCtx;
+            const canvas = gameCanvas;
+
+            // Clear with background
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Apply camera transform
+            ctx.save();
+            ctx.translate(cameraX, cameraY);
+            ctx.scale(cameraZoom, cameraZoom);
+
+            // Floor (infinite in world space)
+            // Calculate visible area in world coordinates
+            const visibleLeft = -cameraX / cameraZoom - 1000;
+            const visibleRight = (canvas.width - cameraX) / cameraZoom + 1000;
+
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(visibleLeft, FLOOR_Y, visibleRight - visibleLeft, 2000);
+            ctx.strokeStyle = '#3a3a5a';
+            ctx.lineWidth = 2 / cameraZoom;
+            ctx.beginPath();
+            ctx.moveTo(visibleLeft, FLOOR_Y);
+            ctx.lineTo(visibleRight, FLOOR_Y);
+            ctx.stroke();
+
+            // Draw objects
+            currentLevel.objects.forEach(obj => obj.draw(ctx));
+
+            // Draw ball
+            if (ball) {
+                ball.draw(ctx);
+
+                // Draw last launch path hint when ball is ready to be launched (stays visible while aiming)
+                if (!ball.isLaunched && (lastLaunchVx !== 0 || lastLaunchVy !== 0)) {
+                    ctx.strokeStyle = 'rgba(255, 200, 100, 0.4)';
+                    ctx.setLineDash([4 / cameraZoom, 4 / cameraZoom]);
+                    ctx.lineWidth = 2 / cameraZoom;
+                    ctx.beginPath();
+
+                    let px = ball.x, py = ball.y, pvx = lastLaunchVx, pvy = lastLaunchVy;
+                    ctx.moveTo(px, py);
+
+                    // Draw a shorter path (30 steps) as a hint
+                    for (let i = 0; i < 30; i++) {
+                        pvy += currentLevel.gravity;
+                        px += pvx;
+                        py += pvy;
+                        if (py > FLOOR_Y - ball.radius) {
+                            py = FLOOR_Y - ball.radius;
+                            pvy = -pvy * currentLevel.bounciness;
+                        }
+                        ctx.lineTo(px, py);
+                    }
+
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Draw a small label
+                    ctx.fillStyle = 'rgba(255, 200, 100, 0.6)';
+                    ctx.font = `${12 / cameraZoom}px Arial`;
+                    ctx.fillText('Last shot', ball.x + 25, ball.y - 15);
+                }
+
+                if (isLaunching && !ball.isLaunched) {
+                    // Cap the visual line at max power distance (200 pixels)
+                    const maxPullDist = 200;
+                    const lineDx = lastMouseX - ball.x;
+                    const lineDy = lastMouseY - ball.y;
+                    const lineDist = Math.sqrt(lineDx * lineDx + lineDy * lineDy);
+
+                    let lineEndX = lastMouseX;
+                    let lineEndY = lastMouseY;
+                    if (lineDist > maxPullDist) {
+                        const scale = maxPullDist / lineDist;
+                        lineEndX = ball.x + lineDx * scale;
+                        lineEndY = ball.y + lineDy * scale;
+                    }
+
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+                    ctx.lineWidth = 2 / cameraZoom;
+                    ctx.beginPath();
+                    ctx.moveTo(ball.x, ball.y);
+                    ctx.lineTo(lineEndX, lineEndY);
+                    ctx.stroke();
+
+                    const dx = launchStart.x - lastMouseX;
+                    const dy = launchStart.y - lastMouseY;
+                    const power = Math.min(Math.sqrt(dx*dx + dy*dy) / 10, 20);
+                    const angle = Math.atan2(dy, dx);
+                    const vx = Math.cos(angle) * power;
+                    const vy = Math.sin(angle) * power;
+
+                    ctx.strokeStyle = 'rgba(0, 217, 255, 0.6)';
+                    ctx.setLineDash([5 / cameraZoom, 5 / cameraZoom]);
+                    ctx.beginPath();
+
+                    let px = ball.x, py = ball.y, pvx = vx, pvy = vy;
+                    ctx.moveTo(px, py);
+
+                    for (let i = 0; i < 60; i++) {
+                        pvy += currentLevel.gravity;
+                        px += pvx;
+                        py += pvy;
+                        if (py > FLOOR_Y - ball.radius) {
+                            py = FLOOR_Y - ball.radius;
+                            pvy = -pvy * currentLevel.bounciness;
+                        }
+                        ctx.lineTo(px, py);
+                    }
+
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    ctx.fillStyle = '#00d9ff';
+                    ctx.font = `${16 / cameraZoom}px Arial`;
+                    ctx.fillText(`Power: ${Math.round(power * 5)}%`, ball.x + 30, ball.y - 30);
+                }
+            }
+
+            ctx.restore();
+
+            // Draw zoom indicator (UI, not affected by camera)
+            if (cameraZoom !== 1) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '14px Arial';
+                ctx.fillText(`Zoom: ${Math.round(cameraZoom * 100)}%`, 10, canvas.height - 40);
+            }
+        }
+
+        function renderEditor() {
+            const ctx = editorCtx;
+            const canvas = editorCanvas;
+
+            ctx.fillStyle = '#0f0f23';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Apply camera transform
+            ctx.save();
+            ctx.translate(editorCameraX, editorCameraY);
+            ctx.scale(editorCameraZoom, editorCameraZoom);
+
+            // Calculate visible area in world coordinates for grid
+            const visibleLeft = -editorCameraX / editorCameraZoom;
+            const visibleTop = -editorCameraY / editorCameraZoom;
+            const visibleRight = (canvas.width - editorCameraX) / editorCameraZoom;
+            const visibleBottom = (canvas.height - editorCameraY) / editorCameraZoom;
+
+            // Grid
+            ctx.strokeStyle = '#1a1a3a';
+            ctx.lineWidth = 1 / editorCameraZoom;
+            const gridSize = 50;
+            const startX = Math.floor(visibleLeft / gridSize) * gridSize;
+            const startY = Math.floor(visibleTop / gridSize) * gridSize;
+            for (let x = startX; x < visibleRight; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, visibleTop);
+                ctx.lineTo(x, visibleBottom);
+                ctx.stroke();
+            }
+            for (let y = startY; y < visibleBottom; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(visibleLeft, y);
+                ctx.lineTo(visibleRight, y);
+                ctx.stroke();
+            }
+
+            // Floor (infinite in world space)
+            ctx.fillStyle = '#2a2a4a';
+            ctx.fillRect(visibleLeft - 1000, FLOOR_Y, visibleRight - visibleLeft + 2000, 2000);
+            ctx.strokeStyle = '#3a3a5a';
+            ctx.lineWidth = 2 / editorCameraZoom;
+            ctx.beginPath();
+            ctx.moveTo(visibleLeft - 1000, FLOOR_Y);
+            ctx.lineTo(visibleRight + 1000, FLOOR_Y);
+            ctx.stroke();
+
+            currentLevel.objects.forEach(obj => {
+                obj.draw(ctx);
+
+                if (obj === selectedObject) {
+                    ctx.strokeStyle = '#00d9ff';
+                    ctx.lineWidth = 2 / editorCameraZoom;
+                    ctx.setLineDash([5 / editorCameraZoom, 5 / editorCameraZoom]);
+
+                    if (obj.type === 'wall') {
+                        ctx.beginPath();
+                        ctx.arc(obj.x1, obj.y1, 8 / editorCameraZoom, 0, Math.PI * 2);
+                        ctx.stroke();
+                        ctx.beginPath();
+                        ctx.arc(obj.x2, obj.y2, 8 / editorCameraZoom, 0, Math.PI * 2);
+                        ctx.stroke();
+                    } else {
+                        // Draw rotated selection box
+                        ctx.save();
+                        ctx.translate(obj.x, obj.y);
+                        ctx.rotate(obj.rotation * Math.PI / 180);
+                        ctx.strokeRect(-obj.width/2 - 5, -obj.height/2 - 5, obj.width + 10, obj.height + 10);
+                        ctx.restore();
+                    }
+                    ctx.setLineDash([]);
+
+                    // Draw resize handles (at rotated corners)
+                    if (obj.type !== 'wall') {
+                        const handles = getResizeHandles(obj);
+                        ctx.fillStyle = '#00d9ff';
+                        Object.values(handles).forEach(h => {
+                            ctx.beginPath();
+                            ctx.arc(h.x, h.y, 5 / editorCameraZoom, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+
+                        // Draw rotation handle (always above object, accounting for rotation)
+                        const handleDist = Math.max(obj.width, obj.height) / 2 + 30;
+                        const rad = obj.rotation * Math.PI / 180;
+                        const handleX = obj.x + Math.sin(rad) * handleDist;
+                        const handleY = obj.y - Math.cos(rad) * handleDist;
+
+                        ctx.strokeStyle = '#00d9ff';
+                        ctx.lineWidth = 2 / editorCameraZoom;
+                        ctx.beginPath();
+                        const lineStartX = obj.x + Math.sin(rad) * (obj.height/2 + 5);
+                        const lineStartY = obj.y - Math.cos(rad) * (obj.height/2 + 5);
+                        ctx.moveTo(lineStartX, lineStartY);
+                        ctx.lineTo(handleX, handleY);
+                        ctx.stroke();
+
+                        ctx.fillStyle = '#ff6b6b';
+                        ctx.beginPath();
+                        ctx.arc(handleX, handleY, 8 / editorCameraZoom, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            });
+
+            // Draw wall being created
+            if (isDrawingWall && wallStartPoint) {
+                ctx.strokeStyle = '#dfe6e9';
+                ctx.lineWidth = 4 / editorCameraZoom;
+                ctx.setLineDash([5 / editorCameraZoom, 5 / editorCameraZoom]);
+                ctx.beginPath();
+                ctx.moveTo(wallStartPoint.x, wallStartPoint.y);
+                ctx.lineTo(lastMouseX, lastMouseY);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Draw ball spawn
+            ctx.beginPath();
+            ctx.arc(currentLevel.ballSpawn.x, currentLevel.ballSpawn.y, 15, 0, Math.PI * 2);
+            ctx.fillStyle = selectedObject === 'ballSpawn' ? '#ff8a8a' : '#ff4757';
+            ctx.fill();
+            ctx.strokeStyle = selectedObject === 'ballSpawn' ? '#00d9ff' : '#cc3344';
+            ctx.lineWidth = selectedObject === 'ballSpawn' ? 3 / editorCameraZoom : 2 / editorCameraZoom;
+            ctx.stroke();
+
+            ctx.fillStyle = '#fff';
+            ctx.font = `${12 / editorCameraZoom}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('SPAWN', currentLevel.ballSpawn.x, currentLevel.ballSpawn.y + 30);
+
+            ctx.restore();
+
+            // Draw zoom indicator (UI, not affected by camera)
+            if (editorCameraZoom !== 1) {
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.font = '14px Arial';
+                ctx.textAlign = 'left';
+                ctx.fillText(`Zoom: ${Math.round(editorCameraZoom * 100)}%`, 10, canvas.height - 40);
+            }
+
+            // Instructions
+            ctx.fillStyle = 'rgba(255,255,255,0.3)';
+            ctx.font = '12px Arial';
+            ctx.fillText('Right-click drag to pan | Scroll to zoom (or resize selected)', 10, canvas.height - 20);
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', init);
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>
