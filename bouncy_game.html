@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bouncy Ball</title>
+    <link rel="icon" href="data:,">
+    <meta name="description" content="A launch-and-bounce physics puzzle with a level editor.">
     <style>
         * {
             margin: 0;
@@ -285,22 +287,22 @@
             <button class="btn btn-secondary" onclick="saveLevel()">Save</button>
         </div>
         <div class="toolbar" id="toolbar">
-            <button class="tool-btn active" data-tool="select" title="Select (drag to move, scroll to resize)">
+            <button class="tool-btn active" data-tool="select" title="Select (drag to move, scroll to resize)" aria-label="Select">
                 <span class="icon-select">+</span>
             </button>
-            <button class="tool-btn" data-tool="ball" title="Ball Spawn">
+            <button class="tool-btn" data-tool="ball" title="Ball Spawn" aria-label="Ball Spawn">
                 <span class="icon-ball">O</span>
             </button>
-            <button class="tool-btn" data-tool="cup" title="Cup">
+            <button class="tool-btn" data-tool="cup" title="Cup" aria-label="Cup">
                 <span class="icon-cup">U</span>
             </button>
-            <button class="tool-btn" data-tool="trampoline" title="Trampoline">
+            <button class="tool-btn" data-tool="trampoline" title="Trampoline" aria-label="Trampoline">
                 <span class="icon-trampoline">=</span>
             </button>
-            <button class="tool-btn" data-tool="spike" title="Spike">
+            <button class="tool-btn" data-tool="spike" title="Spike" aria-label="Spike">
                 <span class="icon-spike">^</span>
             </button>
-            <button class="tool-btn" data-tool="fan" title="Fan">
+            <button class="tool-btn" data-tool="fan" title="Fan" aria-label="Fan">
                 <svg class="icon-fan" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a8e6cf" stroke-width="2">
                     <circle cx="12" cy="12" r="3"/>
                     <path d="M12 9C12 9 12 3 7 3C7 8 12 9 12 9"/>
@@ -309,13 +311,13 @@
                     <path d="M9 12C9 12 3 12 3 17C8 17 9 12 9 12"/>
                 </svg>
             </button>
-            <button class="tool-btn" data-tool="circle" title="Circle">
+            <button class="tool-btn" data-tool="circle" title="Circle" aria-label="Circle">
                 <span class="icon-circle">O</span>
             </button>
-            <button class="tool-btn" data-tool="rectangle" title="Rectangle">
+            <button class="tool-btn" data-tool="rectangle" title="Rectangle" aria-label="Rectangle">
                 <span class="icon-rectangle">[]</span>
             </button>
-            <button class="tool-btn" data-tool="wall" title="Wall (click and drag)">
+            <button class="tool-btn" data-tool="wall" title="Wall (click and drag)" aria-label="Wall">
                 <span class="icon-wall">/</span>
             </button>
         </div>
@@ -336,11 +338,11 @@
     <div class="settings-panel" id="settingsPanel">
         <h2>Settings</h2>
         <label>Gravity: <span id="gravityValue">0.5</span></label>
-        <input type="range" id="gravitySlider" min="0.1" max="2" step="0.1" value="0.5" onchange="updateGravity(this.value)">
+        <input type="range" id="gravitySlider" aria-label="Gravity" min="0.1" max="2" step="0.1" value="0.5" onchange="updateGravity(this.value)">
         <label>Bounciness: <span id="bouncinessValue">70</span>%</label>
-        <input type="range" id="bouncinessSlider" min="0" max="100" step="5" value="70" onchange="updateBounciness(this.value)">
+        <input type="range" id="bouncinessSlider" aria-label="Bounciness" min="0" max="100" step="5" value="70" onchange="updateBounciness(this.value)">
         <label>Friction: <span id="frictionValue">50</span>%</label>
-        <input type="range" id="frictionSlider" min="0" max="100" step="5" value="50" onchange="updateFriction(this.value)">
+        <input type="range" id="frictionSlider" aria-label="Friction" min="0" max="100" step="5" value="50" onchange="updateFriction(this.value)">
         <br><br>
         <button class="btn btn-primary" onclick="closeSettings()">Close</button>
     </div>
@@ -1414,11 +1416,13 @@
                 const editBtn = document.createElement('button');
                 editBtn.className = 'edit-btn';
                 editBtn.textContent = '✎';
+                editBtn.setAttribute('aria-label', 'Edit level');
                 editBtn.onclick = (e) => { e.stopPropagation(); editLevel(index); };
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-btn';
                 deleteBtn.textContent = 'x';
+                deleteBtn.setAttribute('aria-label', 'Delete level');
                 deleteBtn.onclick = (e) => { e.stopPropagation(); deleteLevel(index); };
 
                 box.appendChild(miniCanvas);
