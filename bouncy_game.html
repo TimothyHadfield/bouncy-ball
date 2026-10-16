@@ -454,6 +454,8 @@
             }
 
             reset() {
+                clearTimeout(this.respawnTimer); // a pending spike respawn must not reset a newer shot
+                this.respawnTimer = null;
                 this.x = this.spawnX;
                 this.y = this.spawnY;
                 this.vx = 0;
@@ -870,8 +872,7 @@
                         const isTipEdge = (i === 0 || i === 2);
                         if (isTipEdge) {
                             // Death on tip edges
-                            this.isDead = true;
-                            setTimeout(() => this.reset(), 1000);
+                            this.die();
                             return;
                         } else {
                             // Bounce off base edge
@@ -894,9 +895,14 @@
 
                 // Also check if ball center is inside the triangle (for fast-moving balls)
                 if (!hitEdge && this.pointInTriangle(this.x, this.y, worldVerts[0], worldVerts[1], worldVerts[2])) {
-                    this.isDead = true;
-                    setTimeout(() => this.reset(), 1000);
+                    this.die();
                 }
+            }
+
+            die() {
+                if (this.respawnTimer) return; // already dying (several sub-steps can hit the spike)
+                this.isDead = true;
+                this.respawnTimer = setTimeout(() => this.reset(), 1000);
             }
 
             pointInTriangle(px, py, v1, v2, v3) {
@@ -1342,13 +1348,18 @@
         }
 
         function loadLevels() {
+            let saved = null;
             try {
-                const saved = localStorage.getItem('bouncyBallLevels');
+                saved = localStorage.getItem('bouncyBallLevels');
                 if (saved) {
                     levels = JSON.parse(saved).map(d => Level.fromJSON(d));
                     if (levels.length === 0) throw new Error('Empty');
                 } else throw new Error('No data');
             } catch (e) {
+                // Keep a copy of saved data we couldn't read, instead of overwriting it with the tutorial
+                if (saved && saved !== '[]') {
+                    try { localStorage.setItem('bouncyBallLevels_backup', saved); } catch (e2) {}
+                }
                 const defaultLevel = new Level('Tutorial');
                 defaultLevel.ballSpawn = { x: 150, y: 300 };
                 defaultLevel.objects = [
@@ -1362,12 +1373,17 @@
         }
 
         function saveLevels() {
-            localStorage.setItem('bouncyBallLevels', JSON.stringify(levels.map(l => l.toJSON())));
+            try {
+                localStorage.setItem('bouncyBallLevels', JSON.stringify(levels.map(l => l.toJSON())));
+            } catch (e) {
+                // Storage blocked or full: keep playing, levels just won't persist
+                console.warn('Could not save levels:', e);
+            }
         }
 
         function resetGame() {
             if (confirm('Delete all levels?')) {
-                localStorage.removeItem('bouncyBallLevels');
+                try { localStorage.removeItem('bouncyBallLevels'); } catch (e) {}
                 location.reload();
             }
         }
@@ -1945,6 +1961,11 @@
             if (isResizing && selectedObject && selectedObject !== 'ballSpawn') {
                 const dx = pos.x - dragStart.x;
                 const dy = pos.y - dragStart.y;
+                // Mouse movement in the object's own (rotated) frame, so handles work on rotated objects
+                const rad = selectedObject.rotation * Math.PI / 180;
+                const cos = Math.cos(rad), sin = Math.sin(rad);
+                const ldx = dx * cos + dy * sin;
+                const ldy = -dx * sin + dy * cos;
 
                 if (selectedObject.type === 'circle') {
                     const delta = (dx + dy) / 2;
@@ -1952,10 +1973,13 @@
                     selectedObject.width = selectedObject.radius * 2;
                     selectedObject.height = selectedObject.radius * 2;
                 } else {
-                    if (resizeHandle.includes('right')) selectedObject.width = Math.max(20, selectedObject.width + dx);
-                    if (resizeHandle.includes('left')) { selectedObject.width = Math.max(20, selectedObject.width - dx); selectedObject.x += dx/2; }
-                    if (resizeHandle.includes('bottom')) selectedObject.height = Math.max(10, selectedObject.height + dy);
-                    if (resizeHandle.includes('top')) { selectedObject.height = Math.max(10, selectedObject.height - dy); selectedObject.y += dy/2; }
+                    let shiftX = 0, shiftY = 0; // centre shift in local coords
+                    if (resizeHandle.includes('right')) selectedObject.width = Math.max(20, selectedObject.width + ldx);
+                    if (resizeHandle.includes('left')) { selectedObject.width = Math.max(20, selectedObject.width - ldx); shiftX = ldx/2; }
+                    if (resizeHandle.includes('bottom')) selectedObject.height = Math.max(10, selectedObject.height + ldy);
+                    if (resizeHandle.includes('top')) { selectedObject.height = Math.max(10, selectedObject.height - ldy); shiftY = ldy/2; }
+                    selectedObject.x += shiftX * cos - shiftY * sin;
+                    selectedObject.y += shiftX * sin + shiftY * cos;
                 }
                 dragStart = pos;
                 return;
