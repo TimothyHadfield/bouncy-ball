@@ -33,6 +33,7 @@ None.
   - Blocked or full storage no longer crashes the menu.
   - Unreadable saved levels are copied to `bouncyBallLevels_backup` instead of being lost.
   - Nothing visible changed.
+- 2026-10-17 · The browser's "site says" boxes (Delete all levels?, Delete this level?, Level name:) are now in-app dialogs styled like the Settings panel (`appConfirm`/`appPrompt`); game keys (Delete, Enter, Escape) are blocked while one is open.
 
 ## NOT verified
 - A real iPhone (only Safari's engine through phone-view).

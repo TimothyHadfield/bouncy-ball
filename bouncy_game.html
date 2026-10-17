@@ -237,6 +237,26 @@
 
         .settings-overlay.active { display: block; }
 
+        /* In-app confirm/prompt dialog (reuses the Settings overlay + panel look) */
+        #appDialogOverlay, #appDialogPanel { z-index: 2000; }
+        #appDialogOverlay { z-index: 1999; }
+        #appDialogPanel { max-width: calc(100vw - 32px); }
+        #appDialogPanel p { margin-bottom: 15px; }
+        #appDialogPanel input[type="text"] {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #444;
+            border-radius: 8px;
+            background: #222;
+            color: #fff;
+            font-size: 1rem;
+            outline: none;
+        }
+        #appDialogPanel input[type="text"]:focus { border-color: #00d9ff; }
+        #appDialogPanel .dialog-buttons { text-align: right; }
+
         .icon-ball { color: #ff6b6b; }
         .icon-cup { color: #4ecdc4; }
         .icon-trampoline { color: #ffe66d; }
@@ -345,6 +365,16 @@
         <input type="range" id="frictionSlider" aria-label="Friction" min="0" max="100" step="5" value="50" onchange="updateFriction(this.value)">
         <br><br>
         <button class="btn btn-primary" onclick="closeSettings()">Close</button>
+    </div>
+
+    <div class="settings-overlay" id="appDialogOverlay"></div>
+    <div class="settings-panel" id="appDialogPanel" role="dialog" aria-modal="true" aria-labelledby="appDialogMsg">
+        <p id="appDialogMsg"></p>
+        <input type="text" id="appDialogInput" aria-labelledby="appDialogMsg" autocomplete="off">
+        <div class="dialog-buttons">
+            <button class="btn btn-secondary" id="appDialogCancel">Cancel</button>
+            <button class="btn btn-primary" id="appDialogOk">OK</button>
+        </div>
     </div>
 
     <script>
@@ -1383,8 +1413,63 @@
             }
         }
 
-        function resetGame() {
-            if (confirm('Delete all levels?')) {
+        // ==================== IN-APP DIALOGS ====================
+        // Replace the browser's confirm()/prompt(). Cancel, Escape or a backdrop
+        // click give false/null; OK or Enter give true/the typed text.
+        let appDialogOpen = false;
+
+        function openAppDialog(message, withInput, defaultValue) {
+            return new Promise(resolve => {
+                const overlay = document.getElementById('appDialogOverlay');
+                const panel = document.getElementById('appDialogPanel');
+                const input = document.getElementById('appDialogInput');
+                const okBtn = document.getElementById('appDialogOk');
+                const cancelBtn = document.getElementById('appDialogCancel');
+                const prevFocus = document.activeElement;
+
+                document.getElementById('appDialogMsg').textContent = message;
+                input.style.display = withInput ? 'block' : 'none';
+                input.value = withInput ? (defaultValue == null ? '' : String(defaultValue)) : '';
+
+                function finish(ok) {
+                    appDialogOpen = false;
+                    overlay.classList.remove('active');
+                    panel.classList.remove('active');
+                    window.removeEventListener('keydown', onKey, true);
+                    okBtn.onclick = cancelBtn.onclick = overlay.onclick = null;
+                    if (prevFocus && prevFocus.focus && document.contains(prevFocus)) prevFocus.focus();
+                    resolve(withInput ? (ok ? input.value : null) : ok);
+                }
+
+                // Capture phase on window: the game's own key handler never sees
+                // keys pressed while the dialog is open (typing, Delete, Enter, Escape).
+                function onKey(e) {
+                    e.stopPropagation();
+                    if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+                    else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        finish(document.activeElement !== cancelBtn);
+                    }
+                }
+
+                okBtn.onclick = () => finish(true);
+                cancelBtn.onclick = () => finish(false);
+                overlay.onclick = () => finish(false);
+                window.addEventListener('keydown', onKey, true);
+
+                appDialogOpen = true;
+                overlay.classList.add('active');
+                panel.classList.add('active');
+                if (withInput) { input.focus(); input.select(); }
+                else okBtn.focus();
+            });
+        }
+
+        function appConfirm(message) { return openAppDialog(message, false); }
+        function appPrompt(message, defaultValue) { return openAppDialog(message, true, defaultValue); }
+
+        async function resetGame() {
+            if (await appConfirm('Delete all levels?')) {
                 try { localStorage.removeItem('bouncyBallLevels'); } catch (e) {}
                 location.reload();
             }
@@ -1459,8 +1544,8 @@
             ctx.restore();
         }
 
-        function deleteLevel(index) {
-            if (confirm('Delete this level?')) {
+        async function deleteLevel(index) {
+            if (await appConfirm('Delete this level?')) {
                 levels.splice(index, 1);
                 saveLevels();
                 renderMenu();
@@ -1530,8 +1615,8 @@
             showScreen('gameScreen');
         }
 
-        function createNewLevel() {
-            const name = prompt('Level name:', 'Level ' + (levels.length + 1));
+        async function createNewLevel() {
+            const name = await appPrompt('Level name:', 'Level ' + (levels.length + 1));
             if (name) {
                 const newLevel = new Level(name);
                 newLevel.ballSpawn = { x: 150, y: 300 };
@@ -2077,6 +2162,7 @@
         }
 
         function onKeyDown(e) {
+            if (appDialogOpen) return; // keys belong to the open dialog
             if (currentState === GameState.EDITING && selectedObject && selectedObject !== 'ballSpawn') {
                 if (e.key === 'Delete' || e.key === 'Backspace') {
                     const index = currentLevel.objects.indexOf(selectedObject);
