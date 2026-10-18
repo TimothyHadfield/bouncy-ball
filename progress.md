@@ -14,6 +14,7 @@ None set. The game works on a laptop. The 2026-10-16 sweep fixed bugs only and c
 | Phone | Not playable (mouse-only input). Tim's call, see Traps |
 | Hosting | GitHub Pages from `main`, https://timothyhadfield.github.io/bouncy-ball/ |
 | Tests | No suite. Verified with phone-view `--eval` scripts |
+| Site icon | 2026-10-17: `icon.svg` (red ball on cyan trampoline) tab favicon + `apple-touch-icon.png` for iPhone, linked from both html pages |
 
 ## Authorized next steps
 None.
